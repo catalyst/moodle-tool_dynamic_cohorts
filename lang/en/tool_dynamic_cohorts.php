@@ -27,3 +27,9 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['dynamic_cohorts:manage'] = 'Manage rules';
 $string['pluginname'] = 'Dynamic cohort rules';
+$string['privacy:metadata:tool_dynamic_cohorts'] = 'Information about rules created or updated by a user';
+$string['privacy:metadata:tool_dynamic_cohorts:name'] = 'Rule name';
+$string['privacy:metadata:tool_dynamic_cohorts:usermodified'] = 'The ID of the user who created or updated a rule';
+$string['privacy:metadata:tool_dynamic_cohorts_c'] = 'Information about conditions created or updated by a user';
+$string['privacy:metadata:tool_dynamic_cohorts_c:ruleid'] = 'ID of the rule';
+$string['privacy:metadata:tool_dynamic_cohorts_c:usermodified'] = 'The ID of the user who created or updated a condition';
