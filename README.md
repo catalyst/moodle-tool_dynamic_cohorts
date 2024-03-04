@@ -1,3 +1,7 @@
+<a href="https://github.com/catalyst/moodle-tool_dynamic_cohorts/actions?query=branch%3AMOODLE_401_STABLE">
+<img src="https://github.com/catalyst/moodle-tool_dynamic_cohorts/actions/workflows/ci.yml/badge.svg?branch=3AMOODLE_401_STABLE" >
+</a>
+
 # Dynamic cohort rules #
 
 TODO Describe the plugin shortly here.
