@@ -15,21 +15,20 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Plugin capabilities are defined here.
+ * Settings page
  *
  * @package     tool_dynamic_cohorts
- * @category    access
  * @copyright   2024 Catalyst IT
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$capabilities = [
-    'tool/dynamic_cohorts:manage' => [
-        'captype' => 'write',
-        'contextlevel' => CONTEXT_SYSTEM,
-        'archetypes' => [
-        ],
-    ],
-];
+if ($hassiteconfig) {
+    $ADMIN->add('accounts', new admin_category('tool_dynamic_cohorts', get_string('pluginname', 'tool_dynamic_cohorts')));
+    $ADMIN->add('tool_dynamic_cohorts', new admin_externalpage(
+        'tool_dynamic_cohorts_rules',
+        get_string('managerules', 'tool_dynamic_cohorts'),
+        new moodle_url('/admin/tool/dynamic_cohorts/index.php')
+    ));
+}

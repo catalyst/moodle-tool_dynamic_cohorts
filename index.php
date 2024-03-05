@@ -15,21 +15,29 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Plugin capabilities are defined here.
+ * Rules page.
  *
  * @package     tool_dynamic_cohorts
- * @category    access
  * @copyright   2024 Catalyst IT
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
+require_once(__DIR__ . '/../../../config.php');
+require_once($CFG->libdir . '/adminlib.php');
 
-$capabilities = [
-    'tool/dynamic_cohorts:manage' => [
-        'captype' => 'write',
-        'contextlevel' => CONTEXT_SYSTEM,
-        'archetypes' => [
-        ],
-    ],
-];
+admin_externalpage_setup('tool_dynamic_cohorts_rules');
+
+$manageurl = new moodle_url('/admin/tool/dynamic_cohorts/index.php');
+$editurl = new moodle_url('/admin/tool/dynamic_cohorts/edit.php');
+
+$report = \core_reportbuilder\system_report_factory::create(
+    \tool_dynamic_cohorts\reportbuilder\local\systemreports\rules::class,
+    context_system::instance(),
+    'tool_dynamic_cohorts'
+);
+
+echo $OUTPUT->header();
+echo $OUTPUT->heading(get_string('managerules', 'tool_dynamic_cohorts'));
+echo $OUTPUT->render_from_template('tool_dynamic_cohorts/addbutton', ['url' => $editurl]);
+echo $report->output();
+echo $OUTPUT->footer();
