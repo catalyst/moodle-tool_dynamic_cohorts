@@ -25,7 +25,27 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+$string['addrule'] = 'Add a new rule';
+$string['add_rule'] = 'Add new rule';
+$string['bulkprocessing'] = 'Bulk processing';
+$string['bulkprocessing_help'] = 'If this option is enabled, users will be added and removed from cohort in bulk. This will significantly improve processing performance. However, using this option will suppress triggering events when users added or removed from cohort.';
+$string['cohort'] = 'Cohort';
+$string['cohortid'] = 'Cohort';
+$string['cohortid_help'] = 'A cohort to manage as part of this rule. Only cohorts that are not managed by other plugins are displayed in this list.';
+$string['delete_confirm'] = 'Are you sure you want to delete rule {$a}?';
+$string['delete_rule'] = 'Delete rule';
+$string['description'] = 'Description';
+$string['description_help'] = 'As short description of this rule';
+$string['disabled'] = 'Disabled';
+$string['disable_confirm'] = 'Are you sure you want to disable rule {$a}?';
 $string['dynamic_cohorts:manage'] = 'Manage rules';
+$string['edit_rule'] = 'Edit rule';
+$string['enabled'] = 'Enabled';
+$string['enable_confirm'] = 'Are you sure you want to enable rule {$a}?';
+$string['managerules'] = 'Manage rules';
+$string['managecohorts'] = 'Manage cohorts';
+$string['name'] = 'Rule name';
+$string['name_help'] = 'A human readable name of this rule.';
 $string['pluginname'] = 'Dynamic cohort rules';
 $string['privacy:metadata:tool_dynamic_cohorts'] = 'Information about rules created or updated by a user';
 $string['privacy:metadata:tool_dynamic_cohorts:name'] = 'Rule name';
@@ -33,3 +53,14 @@ $string['privacy:metadata:tool_dynamic_cohorts:usermodified'] = 'The ID of the u
 $string['privacy:metadata:tool_dynamic_cohorts_c'] = 'Information about conditions created or updated by a user';
 $string['privacy:metadata:tool_dynamic_cohorts_c:ruleid'] = 'ID of the rule';
 $string['privacy:metadata:tool_dynamic_cohorts_c:usermodified'] = 'The ID of the user who created or updated a condition';
+$string['ruleisbroken'] = 'Rule is broken';
+$string['ruledisabledpleasereview'] = 'Newly created or updated rules are disabled by default. Please review the rule below and enable it when ready.';
+$string['ruledeleted'] = 'Rule has been deleted';
+$string['ruleenabled'] = 'Rule has been enabled';
+$string['ruledisabled'] = 'Rule has been disabled';
+$string['rule_entity'] = 'Dynamic cohort rule';
+$string['rule_entity.id'] = 'ID';
+$string['rule_entity.name'] = 'Name';
+$string['rule_entity.description'] = 'Description';
+$string['rule_entity.bulkprocessing'] = 'Bulk processing';
+$string['rule_entity.status'] = 'Status';
