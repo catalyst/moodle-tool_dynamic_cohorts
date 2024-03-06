@@ -22,10 +22,6 @@ use tool_dynamic_cohorts\event\rule_created;
 use tool_dynamic_cohorts\event\rule_deleted;
 use tool_dynamic_cohorts\event\rule_updated;
 
-defined('MOODLE_INTERNAL') || die();
-
-require_once($CFG->dirroot.'/cohort/lib.php');
-
 /**
  * Rule manager class.
  *
