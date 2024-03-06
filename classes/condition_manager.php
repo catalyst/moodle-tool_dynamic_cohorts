@@ -57,4 +57,69 @@ class condition_manager {
 
         return $instances;
     }
+
+    /**
+     * Process conditions for submitted rule.
+     *
+     * @param rule $rule Rule instance/
+     * @param \stdClass $formdata Data received from rule_form.
+     */
+    public static function process_form(rule $rule, \stdClass $formdata): void {
+        if (!empty($formdata->isconditionschanged)) {
+            $submittedconditions = self::process_condition_json($formdata->conditionjson);
+            $oldconditions = $rule->get_condition_records();
+
+            $toupdate = [];
+            foreach ($submittedconditions as $condition) {
+                if (empty($condition->get('id'))) {
+                    $condition->set('ruleid', $rule->get('id'));
+                    $condition->create();
+                } else {
+                    $toupdate[$condition->get('id')] = $condition;
+                }
+            }
+
+            $todelete = array_diff_key($oldconditions, $toupdate);
+
+            foreach ($todelete as $conditiontodelete) {
+                $conditiontodelete->delete();
+            }
+
+            foreach ($toupdate as $conditiontoupdate) {
+                $conditiontoupdate->save();
+            }
+        }
+    }
+
+    /**
+     * Take JSON from the form and return a list of condition persistents.
+     *
+     * @param string $formjson Conditions JSON string from the rule form.
+     *
+     * @return condition[]
+     */
+    private static function process_condition_json(string $formjson): array {
+        // Get only required fields for condition persistent.
+        $requiredconditionfield = array_diff(
+            array_keys(condition::properties_definition()),
+            ['ruleid', 'usermodified', 'timecreated', 'timemodified']
+        );
+
+        $formjson = json_decode($formjson, true);
+        $submittedrecords = [];
+
+        if (is_array($formjson)) {
+            // Filter out submitted conditions data to only fields required for condition persistent.
+            $submittedrecords = array_map(function (array $record) use ($requiredconditionfield): array {
+                return array_intersect_key($record, array_flip($requiredconditionfield));
+            }, $formjson);
+        }
+
+        $conditions = [];
+        foreach ($submittedrecords as $submittedrecord) {
+            $conditions[] = new condition($submittedrecord['id'], (object)$submittedrecord);
+        }
+
+        return $conditions;
+    }
 }

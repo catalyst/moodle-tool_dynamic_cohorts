@@ -74,6 +74,21 @@ class rule_form extends \moodleform {
         $mform->addElement('hidden', 'conditionjson', '', ['id' => 'id_conditionjson']);
         $mform->setType('conditionjson', PARAM_RAW_TRIMMED);
 
+        // A flag to indicate whether the conditions were updated or not.
+        $mform->addElement('hidden', 'isconditionschanged', 0, ['id' => 'id_isconditionschanged']);
+        $mform->setType('isconditionschanged', PARAM_BOOL);
+        $mform->setDefault('isstepschanged', 0);
+
+        $conditions = ['' => get_string('choosedots')];
+        foreach (condition_manager::get_all_conditions() as $class => $condition) {
+            $conditions[$class] = $condition->get_name();
+        }
+
+        $group = [];
+        $group[] = $mform->createElement('select', 'condition', '', $conditions);
+        $group[] = $mform->createElement('button', 'conditionmodalbutton', get_string('addcondition', 'tool_dynamic_cohorts'));
+        $mform->addGroup($group, 'conditiongroup', get_string('condition', 'tool_dynamic_cohorts'), ' ', false);
+
         $mform->addElement(
             'advcheckbox',
             'bulkprocessing',
@@ -107,5 +122,26 @@ class rule_form extends \moodleform {
         }
 
         return $options;
+    }
+
+    /**
+     * Definition after data is set.
+     */
+    public function definition_after_data() {
+        global $OUTPUT;
+
+        $mform = $this->_form;
+        $conditionjson = $mform->getElementValue('conditionjson');
+        $conditions = $OUTPUT->render_from_template('tool_dynamic_cohorts/conditions', [
+            'conditions' => json_decode($conditionjson, true),
+        ]);
+
+        $mform->insertElementBefore(
+            $mform->createElement(
+                'html',
+                '<div id="conditions">' . $conditions . '</div>'
+            ),
+            'buttonar'
+        );
     }
 }

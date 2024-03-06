@@ -67,6 +67,8 @@ if ($mform->is_cancelled()) {
     redirect($manageurl);
 }
 
+$PAGE->requires->js_call_amd('tool_dynamic_cohorts/condition_form', 'init');
+
 echo $OUTPUT->header();
 echo $OUTPUT->heading($header);
 $mform->display();

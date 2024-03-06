@@ -45,7 +45,7 @@ abstract class condition_base {
      * @param \stdClass|null $record
      * @return \tool_dynamic_cohorts\condition_base|null
      */
-    final public static function get_instance(int $id = 0, ?\stdClass $record = null):? condition_base {
+    final public static function get_instance(int $id = 0, ?\stdClass $record = null): ?condition_base {
         $condition = new condition($id, $record);
 
         // In case we are getting the instance without underlying persistent data.
@@ -76,7 +76,7 @@ abstract class condition_base {
         // Everything except these fields is considered as config data.
         unset($configdata['id']);
         unset($configdata['ruleid']);
-        unset($configdata['position']);
+        unset($configdata['sortorder']);
 
         return $configdata;
     }
