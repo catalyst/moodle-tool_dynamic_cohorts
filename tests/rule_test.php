@@ -89,4 +89,39 @@ class rule_test extends \advanced_testcase {
         $rule = new rule(0, (object)['name' => 'Test not broken']);
         $this->assertFalse($rule->is_broken());
     }
+
+    /**
+     * Test is_broken when checking conditions.
+     */
+    public function test_is_broken_check_conditions() {
+        $this->resetAfterTest();
+
+        $rule = new rule(0, (object)['name' => 'Test rule 1']);
+        $rule->save();
+
+        $condition = new condition(0, (object) ['ruleid' => $rule->get('id'), 'classname' => 'test', 'sortorder' => 0]);
+        $condition->save();
+
+        $this->assertFalse($rule->is_broken());
+        $this->assertTrue($rule->is_broken(true));
+    }
+
+    /**
+     * Test marking a rule broken and unbroken.
+     */
+    public function test_mark_broken_and_unbroken() {
+        $this->resetAfterTest();
+
+        $rule = new rule(0, (object)['name' => 'Test rule 2', 'broken' => 0, 'enabled' => 1]);
+        $this->assertFalse($rule->is_broken());
+        $this->assertTrue($rule->is_enabled());
+
+        $rule->mark_broken();
+        $this->assertTrue($rule->is_broken());
+        $this->assertFalse($rule->is_enabled());
+
+        $rule->mark_unbroken();
+        $this->assertFalse($rule->is_broken());
+        $this->assertFalse($rule->is_enabled());
+    }
 }

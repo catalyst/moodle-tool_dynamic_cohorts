@@ -25,6 +25,7 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+$string['addcondition'] = 'Add a condition';
 $string['addrule'] = 'Add a new rule';
 $string['add_rule'] = 'Add new rule';
 $string['bulkprocessing'] = 'Bulk processing';
@@ -32,8 +33,13 @@ $string['bulkprocessing_help'] = 'If this option is enabled, users will be added
 $string['cohort'] = 'Cohort';
 $string['cohortid'] = 'Cohort';
 $string['cohortid_help'] = 'A cohort to manage as part of this rule. Only cohorts that are not managed by other plugins are displayed in this list.';
+$string['condition'] = 'Condition';
+$string['conditions'] = 'Conditions';
+$string['conditionchnagesnotapplied'] = 'Condition changes are not applied until you save the rule form';
+$string['conditionformtitle'] = 'Rule condition';
 $string['condition_user_profile']  = 'User standard profile field';
 $string['delete_confirm'] = 'Are you sure you want to delete rule {$a}?';
+$string['delete_confirm_condition'] = 'Are you sure you want to delete this condition?';
 $string['delete_rule'] = 'Delete rule';
 $string['description'] = 'Description';
 $string['description_help'] = 'As short description of this rule';

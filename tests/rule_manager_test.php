@@ -21,6 +21,7 @@ use moodle_exception;
 use tool_dynamic_cohorts\event\rule_created;
 use tool_dynamic_cohorts\event\rule_deleted;
 use tool_dynamic_cohorts\event\rule_updated;
+use tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_profile;
 
 /**
  * Tests for rule manager class.
@@ -32,6 +33,20 @@ use tool_dynamic_cohorts\event\rule_updated;
  * @covers     \tool_dynamic_cohorts\rule_manager
  */
 class rule_manager_test extends \advanced_testcase {
+
+    /**
+     * Get condition instance for testing.
+     *
+     * @param string $classname Class name.
+     * @param array $configdata Config data to be set.
+     * @return condition_base
+     */
+    protected function get_condition(string $classname, array $configdata = []): condition_base {
+        $condition = condition_base::get_instance(0, (object)['classname' => $classname]);
+        $condition->set_config_data($configdata);
+
+        return $condition;
+    }
 
     /**
      * Test building edit URL.
@@ -74,6 +89,23 @@ class rule_manager_test extends \advanced_testcase {
         $this->resetAfterTest();
 
         $rule = new rule(0, (object)['name' => 'Test rule', 'cohortid' => 0, 'description' => 'Test description']);
+        $instance = $this->get_condition(
+            'tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_profile',
+            [
+                'profilefield' => 'username',
+                'username_operator' => user_profile::TEXT_IS_EQUAL_TO,
+                'username_value' => 'user1',
+            ]
+        );
+
+        $instance->get_record()->set('ruleid', $rule->get('id'));
+        $instance->get_record()->set('sortorder', 0);
+        $instance->get_record()->save();
+
+        $condition = condition::get_record(['id' => $instance->get_record()->get('id')]);
+        $conditions[] = (array) $condition->to_record() +
+            ['description' => $instance->get_config_description()] +
+            ['name' => $instance->get_name()];
 
         $expected = [
             'name' => 'Test rule',
@@ -86,7 +118,7 @@ class rule_manager_test extends \advanced_testcase {
             'timecreated' => 0,
             'timemodified' => 0,
             'usermodified' => 0,
-            'conditionjson' => '',
+            'conditionjson' => json_encode($conditions),
         ];
 
         $this->assertSame($expected, rule_manager::build_data_for_form($rule));
@@ -327,6 +359,107 @@ class rule_manager_test extends \advanced_testcase {
 
         $formdata = ['name' => 'Test', 'cohortid' => $cohort->id, 'description' => '', 'bulkprocessing' => 1];
         rule_manager::process_form((object)$formdata);
+    }
+
+    /**
+     * Test conditions created when processing rule form data.
+     */
+    public function test_process_rule_form_with_conditions() {
+        global $DB;
+
+        $this->resetAfterTest();
+        $cohort = $this->getDataGenerator()->create_cohort();
+
+        $this->assertEquals(0, $DB->count_records(rule::TABLE));
+
+        // Creating rule without conditions.
+        $formdata = ['name' => 'Test', 'cohortid' => $cohort->id, 'description' => '',
+            'conditionjson' => '', 'bulkprocessing' => 1];
+        $rule = rule_manager::process_form((object)$formdata);
+
+        // No conditions yet. Rule should be ok.
+        $this->assertFalse($rule->is_broken());
+        // Rules disabled by default.
+        $this->assertFalse($rule->is_enabled());
+
+        $this->assertEquals(1, $DB->count_records(rule::TABLE));
+        $this->assertCount(0, $rule->get_condition_records());
+
+        // Updating the rule with 3 new conditions, but flag isconditionschanged is not set.
+        $conditionjson = json_encode([
+            ['id' => 0, 'classname' => 'class1', 'sortorder' => 0, 'configdata' => ''],
+            ['id' => 0, 'classname' => 'class2', 'sortorder' => 1, 'configdata' => ''],
+            ['id' => 0, 'classname' => 'class3', 'sortorder' => 2, 'configdata' => ''],
+        ]);
+
+        $formdata = ['id' => $rule->get('id'), 'name' => 'Test', 'enabled' => 1, 'cohortid' => $cohort->id,
+            'description' => '', 'conditionjson' => $conditionjson, 'bulkprocessing' => 1];
+        $rule = rule_manager::process_form((object)$formdata);
+        $this->assertEquals(1, $DB->count_records(rule::TABLE));
+        $this->assertCount(0, $rule->get_condition_records());
+
+        // No conditions yet. Rule should be ok.
+        $this->assertFalse($rule->is_broken());
+        // Rules disabled by default.
+        $this->assertFalse($rule->is_enabled());
+
+        // Updating the rule with 3 new conditions. Expecting 3 new conditions to be created.
+        $formdata = ['id' => $rule->get('id'), 'name' => 'Test', 'enabled' => 1, 'cohortid' => $cohort->id,
+            'description' => '', 'conditionjson' => $conditionjson, 'isconditionschanged' => true, 'bulkprocessing' => 1];
+        $rule = rule_manager::process_form((object)$formdata);
+        $this->assertEquals(1, $DB->count_records(rule::TABLE));
+        $this->assertCount(3, $rule->get_condition_records());
+
+        // Rule should be broken as all conditions are broken (not existing class).
+        $this->assertTrue($rule->is_broken());
+        $this->assertFalse($rule->is_enabled());
+
+        $this->assertTrue(condition::record_exists_select('classname = ? AND ruleid = ?', ['class1', $rule->get('id')]));
+        $this->assertTrue(condition::record_exists_select('classname = ? AND ruleid = ?', ['class2', $rule->get('id')]));
+        $this->assertTrue(condition::record_exists_select('classname = ? AND ruleid = ?', ['class3', $rule->get('id')]));
+
+        // Updating the rule with 1 new condition, 1 deleted condition (sortorder 1) and
+        // two updated conditions (sortorder added to a class name). Expecting 1 new condition, 2 updated and 1 deleted.
+        $conditions = $rule->get_condition_records();
+        $conditionjson = [];
+
+        foreach ($conditions as $condition) {
+            if ($condition->get('sortorder') != 1) {
+                $conditionjson[] = [
+                    'id' => $condition->get('id'),
+                    'classname' => $condition->get('classname') . $condition->get('sortorder'),
+                    'sortorder' => $condition->get('sortorder'),
+                    'configdata' => $condition->get('configdata'),
+                ];
+            }
+        }
+
+        $conditionjson[] = ['id' => 0, 'classname' => 'class4', 'sortorder' => 2, 'configdata' => ''];
+        $conditionjson = json_encode($conditionjson);
+
+        $formdata = ['id' => $rule->get('id'), 'name' => 'Test', 'enabled' => 1, 'cohortid' => $cohort->id,
+            'description' => '', 'conditionjson' => $conditionjson, 'isconditionschanged' => true, 'bulkprocessing' => 1];
+        $rule = rule_manager::process_form((object)$formdata);
+        $this->assertEquals(1, $DB->count_records(rule::TABLE));
+        $this->assertCount(3, $rule->get_condition_records());
+        $this->assertTrue($rule->is_broken());
+        $this->assertFalse($rule->is_enabled());
+
+        $this->assertTrue(condition::record_exists_select('classname = ? AND ruleid = ?', ['class10', $rule->get('id')]));
+        $this->assertFalse(condition::record_exists_select('classname = ? AND ruleid = ?', ['class2', $rule->get('id')]));
+        $this->assertTrue(condition::record_exists_select('classname = ? AND ruleid = ?', ['class32', $rule->get('id')]));
+        $this->assertTrue(condition::record_exists_select('classname = ? AND ruleid = ?', ['class4', $rule->get('id')]));
+
+        $formdata = ['id' => $rule->get('id'), 'name' => 'Test', 'enabled' => 1, 'cohortid' => $cohort->id,
+            'description' => '', 'conditionjson' => '', 'isconditionschanged' => true, 'bulkprocessing' => 1];
+        $rule = rule_manager::process_form((object)$formdata);
+        $this->assertEquals(1, $DB->count_records(rule::TABLE));
+        $this->assertCount(0, $rule->get_condition_records());
+
+        // Should be unbroken as all broken conditions are gone.
+        $this->assertFalse($rule->is_broken());
+        // Rules are disabled by default.
+        $this->assertFalse($rule->is_enabled());
     }
 
     /**

@@ -1,0 +1,67 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template tool_dynamic_cohorts/conditions
+
+    A list of conditions to display.
+
+    Classes required for JS:
+    * none
+
+    Data attributes required for JS:
+    * none
+
+    Context variables required for this template:
+    * conditions - A list of conditions.
+    * hidecontrols - True if need to hide controls.
+
+    Example context (json):
+    {
+        "conditions" : "conditions",
+        "hidecontrols": "true"
+    }
+}}
+
+<div class="tool-dynamic-cohorts-conditions p-3">
+    <div id="tool-dynamic-cohorts-not-saved" class="hidden alert alert-warning">{{# str }} conditionchnagesnotapplied, tool_dynamic_cohorts {{/ str }}</div>
+    <table class="table table-striped table-hover">
+        <thead>
+        <tr>
+            <th scope="col">{{# str }} name {{/ str }}</th>
+            <th scope="col">{{# str }} description {{/ str }}</th>
+            {{^hidecontrols}}
+                <th scope="col">{{# str }} actions {{/ str }}</th>
+            {{/hidecontrols}}
+        </tr>
+        </thead>
+        <tbody>
+        {{#conditions}}
+            <tr>
+                <td>{{{name}}}</td>
+                <td>{{{description}}}</td>
+                {{^hidecontrols}}
+                    <td>
+                        <span class="tool-dynamic-cohorts-condition-edit" data-sortorder="{{sortorder}}">{{# pix }} t/edit, core, {{# str }} edit {{/ str }} {{/ pix }}</span>
+                        <span class="tool-dynamic-cohorts-condition-delete" data-sortorder="{{sortorder}}">{{# pix }} t/delete, core, {{# str }} delete {{/ str }} {{/ pix }}</span>
+                    </td>
+                {{/hidecontrols}}
+            </tr>
+        {{/conditions}}
+        </tbody>
+    </table>
+</div>
+

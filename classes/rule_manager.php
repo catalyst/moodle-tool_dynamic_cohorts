@@ -63,6 +63,27 @@ class rule_manager {
     public static function build_data_for_form(rule $rule): array {
         $data = (array) $rule->to_record();
         $data['conditionjson'] = '';
+        $conditions = [];
+
+        foreach ($rule->get_condition_records() as $condition) {
+            $instance = condition_base::get_instance(0, $condition->to_record());
+
+            if (!$instance) {
+                $name = $condition->get('classname');
+                $description = $condition->get('configdata');
+            } else {
+                $name = $instance->get_name();
+                $description = $instance->is_broken() ? $instance->get_broken_description() : $instance->get_config_description();
+            }
+
+            $conditions[] = (array)$condition->to_record() +
+                ['description' => $description] +
+                ['name' => $name];
+        }
+
+        if (!empty($conditions)) {
+            $data['conditionjson'] = json_encode($conditions);
+        }
 
         return $data;
     }
@@ -106,6 +127,13 @@ class rule_manager {
 
             cohort_manager::unmanage_cohort($oldcohortid);
             cohort_manager::manage_cohort($formdata->cohortid);
+            condition_manager::process_form($rule, $formdata);
+
+            if ($rule->is_broken(true)) {
+                $rule->mark_broken();
+            } else {
+                $rule->mark_unbroken();
+            }
 
             $transaction->allow_commit();
             return $rule;

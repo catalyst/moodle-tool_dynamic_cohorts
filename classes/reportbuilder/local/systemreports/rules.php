@@ -24,6 +24,7 @@ use core_reportbuilder\system_report;
 use tool_dynamic_cohorts\reportbuilder\local\entities\rule_entity;
 use lang_string;
 use tool_dynamic_cohorts\rule;
+use core_reportbuilder\local\report\column;
 
 /**
  * Rules admin table.
@@ -53,11 +54,32 @@ class rules extends system_report {
         $this->add_entity($cohortentity
              ->add_join("JOIN {cohort} {$cohortalias} ON {$cohortalias}.id = {$rulealias}.cohortid"));
 
-        $this->add_columns();
+        $this->add_column_from_entity('rule_entity:name');
+        $this->add_column_from_entity('rule_entity:description');
+        $this->add_column_from_entity('cohort:name');
+        $this->add_column_from_entity('rule_entity:bulkprocessing');
+
+        $this->add_column(new column(
+            'conditions',
+            new lang_string('conditions', 'tool_dynamic_cohorts'),
+            $ruleentity->get_entity_name()
+        ))
+            ->set_type(column::TYPE_TEXT)
+            ->set_is_sortable(false)
+            ->add_fields("{$rulealias}.id")
+            ->add_callback(static function($id, $row): string {
+                $rule = new rule(0, $row);
+                return count($rule->get_condition_records());
+            });
+
+        $this->add_column_from_entity('rule_entity:status');
+
         $this->add_actions();
 
         $cohortentity->get_column('name')
             ->set_title(new lang_string('cohort', 'tool_dynamic_cohorts'));
+
+        $this->set_initial_sort_column('rule_entity:name', SORT_ASC);
     }
 
     /**
@@ -76,23 +98,6 @@ class rules extends system_report {
      */
     protected function can_view(): bool {
         return has_capability('tool/dynamic_cohorts:manage', $this->get_context());
-    }
-
-    /**
-     * Adds the columns we want to display in the report
-     * They are all provided by the entities we previously added in the {@see initialise} method, referencing each by their
-     * unique identifier
-     */
-    protected function add_columns(): void {
-        $columns = [
-            'rule_entity:name',
-            'rule_entity:description',
-            'cohort:name',
-            'rule_entity:bulkprocessing',
-            'rule_entity:status',
-        ];
-
-        $this->add_columns_from_entities($columns);
     }
 
     /**

@@ -1,0 +1,6 @@
+.tool-dynamic-cohorts-condition-edit,
+.tool-dynamic-cohorts-condition-delete,
+.tool-dynamic-cohorts-condition-view {
+    cursor: pointer;
+    color: #0036ae;
+}

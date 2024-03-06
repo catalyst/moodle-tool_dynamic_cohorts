@@ -100,9 +100,41 @@ class rule extends persistent {
     /**
      * Return if the rule is broken.
      *
+     * @param bool $checkconditions If false, only DB state will be checked, otherwise conditions state will be checked.
      * @return bool
      */
-    public function is_broken() : bool {
-        return (bool) $this->get('broken');
+    public function is_broken(bool $checkconditions = false): bool {
+        if ($checkconditions) {
+            $broken = false;
+
+            foreach ($this->get_condition_records() as $condition) {
+                $instance = condition_base::get_instance(0, $condition->to_record());
+                if (!$instance || $instance->is_broken()) {
+                    $broken = true;
+                    break;
+                }
+            }
+        } else {
+            $broken = (bool) $this->get('broken');
+        }
+
+        return $broken;
+    }
+
+    /**
+     * Mark rule as broken.
+     */
+    public function mark_broken(): void {
+        $this->set('broken', 1);
+        $this->set('enabled', 0);
+        $this->save();
+    }
+
+    /**
+     * Mark rule as unbroken,
+     */
+    public function mark_unbroken(): void {
+        $this->set('broken', 0);
+        $this->save();
     }
 }
