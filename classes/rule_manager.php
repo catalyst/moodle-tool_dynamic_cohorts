@@ -180,12 +180,7 @@ class rule_manager {
 
         if ($rule->delete()) {
             rule_deleted::create(['other' => ['ruleid' => $oldruleid]])->trigger();
-
-            // Delete related condition in a loop to be able to trigger events.
-            foreach ($conditions as $condition) {
-                $condition->delete();
-            }
-
+            condition_manager::delete_conditions($conditions);
             cohort_manager::unmanage_cohort($rule->get('cohortid'));
         }
     }
