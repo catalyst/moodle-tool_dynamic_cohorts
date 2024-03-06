@@ -24,7 +24,7 @@
 
 use core\output\notification;
 use tool_dynamic_cohorts\rule;
-use tool_dynamic_cohorts\rule_manager;
+use tool_dynamic_cohorts\event\rule_updated;
 
 require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir . '/adminlib.php');
@@ -59,6 +59,7 @@ if (!$rule->is_broken()) {
     } else if (data_submitted() && confirm_sesskey()) {
         $rule->set('enabled', $newvalue);
         $rule->save();
+        rule_updated::create(['other' => ['ruleid' => $rule->get('id')]])->trigger();
         redirect($manageurl, $message, null, $messagetype);
     }
 } else {
@@ -68,5 +69,6 @@ if (!$rule->is_broken()) {
 
     $rule->set('enabled', $newvalue);
     $rule->save();
+    rule_updated::create(['other' => ['ruleid' => $rule->get('id')]])->trigger();
     redirect($manageurl, $message, null, $messagetype);
 }

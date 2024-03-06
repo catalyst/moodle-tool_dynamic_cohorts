@@ -18,6 +18,9 @@ namespace tool_dynamic_cohorts;
 
 use moodle_url;
 use moodle_exception;
+use tool_dynamic_cohorts\event\rule_created;
+use tool_dynamic_cohorts\event\rule_deleted;
+use tool_dynamic_cohorts\event\rule_updated;
 
 /**
  * Tests for rule manager class.
@@ -255,7 +258,7 @@ class rule_manager_test extends \advanced_testcase {
     }
 
     /**
-     * Test trying to submit form data and not updating the cohort.
+     * Test submitting form data keeps cohort.
      */
     public function test_process_rule_form_update_rule_form_keeping_cohort() {
         global $DB;
@@ -273,6 +276,43 @@ class rule_manager_test extends \advanced_testcase {
         $formdata = ['id' => $rule->get('id'), 'name' => 'Test1',
             'cohortid' => $cohort->id, 'description' => 'D', 'conditionjson' => '', 'bulkprocessing' => 1];
         rule_manager::process_form((object)$formdata);
+
+        $this->assertEquals('tool_dynamic_cohorts', $DB->get_field('cohort', 'component', ['id' => $cohort->id]));
+    }
+
+    /**
+     * Test triggering events.
+     */
+    public function test_process_rule_form_triggers_events() {
+        $this->resetAfterTest();
+
+        $cohort = $this->getDataGenerator()->create_cohort();
+
+        $eventsink = $this->redirectEvents();
+        $formdata = ['name' => 'Test1', 'cohortid' => $cohort->id, 'description' => 'D',
+            'conditionjson' => '', 'bulkprocessing' => 1];
+        $rule = rule_manager::process_form((object) $formdata);
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof rule_created;
+        });
+
+        $this->assertCount(1, $events);
+        $this->assertEquals($rule->get('id'), reset($events)->other['ruleid']);
+        $eventsink->clear();
+
+        // Update the rule, changing the name. Should work as cohort is the same.
+        $formdata = ['id' => $rule->get('id'), 'name' => 'Test1',
+            'cohortid' => $cohort->id, 'description' => 'D', 'conditionjson' => '', 'bulkprocessing' => 1];
+        rule_manager::process_form((object) $formdata);
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof rule_updated;
+        });
+
+        $this->assertCount(1, $events);
+        $this->assertEquals($rule->get('id'), reset($events)->other['ruleid']);
+        $eventsink->clear();
     }
 
     /**
@@ -345,5 +385,29 @@ class rule_manager_test extends \advanced_testcase {
 
         rule_manager::delete_rule($rule2);
         $this->assertEquals('', $DB->get_field('cohort', 'component', ['id' => $cohort2->id]));
+    }
+
+    /**
+     * Test deleting a rule triggers event.
+     */
+    public function test_deleting_rule_triggers_event() {
+        $this->resetAfterTest();
+
+        $cohort = $this->getDataGenerator()->create_cohort(['component' => 'tool_dynamic_cohorts']);
+
+        $rule = new rule(0, (object)['name' => 'Test rule', 'cohortid' => $cohort->id]);
+        $rule->save();
+        $expectedruleid = $rule->get('id');
+
+        $eventsink = $this->redirectEvents();
+
+        rule_manager::delete_rule($rule);
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof rule_deleted;
+        });
+
+        $this->assertCount(1, $events);
+        $this->assertEquals($expectedruleid, reset($events)->other['ruleid']);
     }
 }

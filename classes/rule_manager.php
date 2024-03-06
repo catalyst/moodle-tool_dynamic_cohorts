@@ -18,6 +18,9 @@ namespace tool_dynamic_cohorts;
 
 use moodle_url;
 use moodle_exception;
+use tool_dynamic_cohorts\event\rule_created;
+use tool_dynamic_cohorts\event\rule_deleted;
+use tool_dynamic_cohorts\event\rule_updated;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -96,11 +99,13 @@ class rule_manager {
             if (empty($formdata->id)) {
                 $rule = new rule(0, $ruledata);
                 $rule->create();
+                rule_created::create(['other' => ['ruleid' => $rule->get('id')]])->trigger();
             } else {
                 $rule = new rule($formdata->id);
                 $oldcohortid = $rule->get('cohortid');
                 $rule->from_record($ruledata);
                 $rule->update();
+                rule_updated::create(['other' => ['ruleid' => $rule->get('id')]])->trigger();
             }
 
             cohort_manager::unmanage_cohort($oldcohortid);
@@ -145,10 +150,13 @@ class rule_manager {
      *
      * @param rule $rule
      */
-    public static function delete_rule(rule $rule) {
+    public static function delete_rule(rule $rule): void {
+        $oldruleid = $rule->get('id');
         $conditions = $rule->get_condition_records();
 
         if ($rule->delete()) {
+            rule_deleted::create(['other' => ['ruleid' => $oldruleid]])->trigger();
+
             // Delete related condition in a loop to be able to trigger events.
             foreach ($conditions as $condition) {
                 $condition->delete();
