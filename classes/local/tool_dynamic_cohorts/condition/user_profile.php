@@ -91,14 +91,13 @@ class user_profile extends condition_base {
     protected const SUPPORTED_STANDARD_FIELDS = ['auth', 'firstname', 'lastname', 'username', 'email',  'idnumber',
         'city', 'country', 'institution', 'department'];
 
-
     /**
      * Condition name.
      *
      * @return string
      */
     public function get_name(): string {
-        return get_string('condition_user_profile', 'tool_dynamic_cohorts');
+        return get_string('condition:user_profile', 'tool_dynamic_cohorts');
     }
 
     /**
