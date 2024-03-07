@@ -17,6 +17,7 @@
 namespace tool_dynamic_cohorts;
 
 use core\persistent;
+use cache_helper;
 
 /**
  * Conditions persistent
@@ -53,5 +54,33 @@ class condition extends persistent {
                 'type' => PARAM_INT,
             ],
         ];
+    }
+
+    /**
+     * Hook after a condition is deleted.
+     *
+     * @param bool $result Whether or not the delete was successful.
+     * @return void
+     */
+    protected function after_delete($result): void {
+        if ($result) {
+            cache_helper::purge_by_event('conditionschanged');
+        }
+    }
+
+    /**
+     * Hook after created a condition.
+     */
+    protected function after_create() {
+        cache_helper::purge_by_event('conditionschanged');
+    }
+
+    /**
+     * Hook after updating a condition.
+     *
+     * @param bool $result
+     */
+    protected function after_update($result) {
+        cache_helper::purge_by_event('conditionschanged');
     }
 }

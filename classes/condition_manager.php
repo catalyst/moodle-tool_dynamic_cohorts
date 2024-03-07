@@ -16,6 +16,7 @@
 
 namespace tool_dynamic_cohorts;
 
+use core\event\base;
 use core_component;
 use tool_dynamic_cohorts\event\condition_created;
 use tool_dynamic_cohorts\event\condition_deleted;
@@ -182,5 +183,27 @@ class condition_manager {
         $data['other']['description'] = $description;
 
         $eventclass::create($data)->trigger();
+    }
+
+    /**
+     * Gets a list of conditions subscribed for the given event.
+     *
+     * @param \core\event\base $event Event.
+     * @return condition_base[]
+     */
+    public static function get_conditions_with_event(base $event): array {
+        $conditionswithevent = [];
+
+        foreach (self::get_all_conditions(false) as $condition) {
+            $class = get_class($event);
+            foreach ($condition->get_events() as $eventclass) {
+                if (ltrim($class, '\\') === ltrim($eventclass, '\\')) {
+                    $conditionswithevent[$condition->get_record()->get('classname')] = $condition;
+                    break;
+                }
+            }
+        }
+
+        return $conditionswithevent;
     }
 }

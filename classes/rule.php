@@ -16,6 +16,8 @@
 
 namespace tool_dynamic_cohorts;
 
+use cache;
+use cache_helper;
 use core\persistent;
 
 /**
@@ -72,9 +74,16 @@ class rule extends persistent {
      * @return condition[]
      */
     public function get_condition_records(): array {
-        $conditions = [];
-        foreach (condition::get_records(['ruleid' => $this->get('id')], 'sortorder') as $condition) {
-            $conditions[$condition->get('id')] = $condition;
+        $cache = cache::make('tool_dynamic_cohorts', 'conditionrecords');
+        $key = $this->get('id');
+        $conditions = $cache->get($key);
+
+        if ($conditions === false) {
+            $conditions = [];
+            foreach (condition::get_records(['ruleid' => $this->get('id')], 'sortorder') as $condition) {
+                $conditions[$condition->get('id')] = $condition;
+            }
+            $cache->set($key, $conditions);
         }
 
         return $conditions;
@@ -136,5 +145,33 @@ class rule extends persistent {
     public function mark_unbroken(): void {
         $this->set('broken', 0);
         $this->save();
+    }
+
+    /**
+     * Hook after a rule is deleted.
+     *
+     * @param bool $result Whether or not the delete was successful.
+     * @return void
+     */
+    protected function after_delete($result): void {
+        if ($result) {
+            cache_helper::purge_by_event('ruleschanged');
+        }
+    }
+
+    /**
+     * Hook after created a rule.
+     */
+    protected function after_create() {
+        cache_helper::purge_by_event('ruleschanged');
+    }
+
+    /**
+     * Hook after updating a rule.
+     *
+     * @param bool $result
+     */
+    protected function after_update($result) {
+        cache_helper::purge_by_event('ruleschanged');
     }
 }

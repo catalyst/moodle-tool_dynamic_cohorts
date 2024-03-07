@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Plugin version and other meta-data are defined here.
+ * Caches for the plugin.
  *
  * @package     tool_dynamic_cohorts
  * @copyright   2024 Catalyst IT
@@ -24,9 +24,24 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'tool_dynamic_cohorts';
-$plugin->release = 2024030701;
-$plugin->version = 2024030701;
-$plugin->requires = 2022112800;
-$plugin->supported = [401, 403];
-$plugin->maturity = MATURITY_ALPHA;
+
+$definitions = [
+    'rulesconditions' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'simpledata' => true,
+        'staticacceleration' => true,
+        'invalidationevents' => [
+            'ruleschanged',
+            'conditionschanged',
+        ],
+    ],
+    'conditionrecords' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'simpledata' => true,
+        'staticacceleration' => true,
+        'invalidationevents' => [
+            'ruleschanged',
+            'conditionschanged',
+        ],
+    ],
+];

@@ -16,6 +16,7 @@
 
 namespace tool_dynamic_cohorts;
 
+use core\event\user_created;
 use tool_dynamic_cohorts\event\condition_created;
 use tool_dynamic_cohorts\event\condition_deleted;
 use tool_dynamic_cohorts\event\condition_updated;
@@ -193,5 +194,20 @@ class condition_manager_test extends \advanced_testcase {
 
         $this->assertCount(2, $events);
         $eventsink->clear();
+    }
+
+    /**
+     * Test getting conditions for a given event.
+     */
+    public function test_get_conditions_with_event() {
+        $this->resetAfterTest();
+
+        $user = $this->getDataGenerator()->create_user();
+
+        $event = user_created::create_from_userid($user->id);
+        $conditions = condition_manager::get_conditions_with_event($event);
+
+        $this->assertArrayHasKey('tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_custom_profile', $conditions);
+        $this->assertArrayHasKey('tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_profile', $conditions);
     }
 }
