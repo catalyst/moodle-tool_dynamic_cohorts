@@ -16,12 +16,16 @@
 
 namespace tool_dynamic_cohorts;
 
+use core\event\cohort_member_removed;
+use core\event\cohort_member_added;
 use moodle_url;
 use moodle_exception;
 use tool_dynamic_cohorts\event\rule_created;
 use tool_dynamic_cohorts\event\rule_deleted;
 use tool_dynamic_cohorts\event\rule_updated;
+use tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\cohort_membership;
 use tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_profile;
+
 
 /**
  * Tests for rule manager class.
@@ -542,5 +546,280 @@ class rule_manager_test extends \advanced_testcase {
 
         $this->assertCount(1, $events);
         $this->assertEquals($expectedruleid, reset($events)->other['ruleid']);
+    }
+
+    /**
+     * Basic test for get matching users to make sure it all works.
+     */
+    public function test_get_matching_users() {
+        $this->resetAfterTest();
+
+        $user1 = $this->getDataGenerator()->create_user(['username' => 'user1username']);
+        $user2 = $this->getDataGenerator()->create_user(['username' => 'user2username']);
+        $user3 = $this->getDataGenerator()->create_user(['username' => 'test']);
+
+        $cohort = $this->getDataGenerator()->create_cohort();
+
+        $rule = new rule(0, (object)['name' => 'Test rule 1', 'cohortid' => $cohort->id]);
+        $rule->save();
+
+        $condition = user_profile::get_instance(0, (object)['ruleid' => $rule->get('id'), 'sortorder' => 1]);
+        $condition->set_config_data([
+            'profilefield' => 'username',
+            'username_operator' => user_profile::TEXT_IS_EQUAL_TO,
+            'username_value' => 'user1username',
+        ]);
+        $condition->get_record()->save();
+
+        $users = rule_manager::get_matching_users($rule);
+
+        $this->assertArrayHasKey($user1->id, $users);
+        $this->assertArrayNotHasKey($user2->id, $users);
+        $this->assertArrayNotHasKey($user3->id, $users);
+    }
+
+    /**
+     * Test rule processing.
+     */
+    public function test_rule_processing() {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $user1 = $this->getDataGenerator()->create_user(['username' => 'user1']);
+        $user2 = $this->getDataGenerator()->create_user(['username' => 'user2']);
+        $user3 = $this->getDataGenerator()->create_user(['username' => 'test']);
+
+        $cohort1 = $this->getDataGenerator()->create_cohort();
+        $cohort2 = $this->getDataGenerator()->create_cohort();
+
+        cohort_add_member($cohort1->id, $user1->id);
+        cohort_add_member($cohort1->id, $user2->id);
+        cohort_add_member($cohort1->id, $user3->id);
+
+        $rule = new rule(0, (object)['name' => 'Test rule 1', 'cohortid' => $cohort2->id]);
+        $rule->save();
+
+        $condition = cohort_membership::get_instance(0, (object)['ruleid' => $rule->get('id'), 'sortorder' => 0]);
+        $condition->set_config_data([
+            'cohort_membership_operator' => cohort_membership::OPERATOR_IS_MEMBER_OF,
+            'cohort_membership_value' => [$cohort1->id],
+        ]);
+        $condition->get_record()->save();
+
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user1->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user2->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user3->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user1->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user2->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user3->id]));
+
+        $eventsink = $this->redirectEvents();
+
+        // Rule disabled by default.
+        rule_manager::process_rule($rule);
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user1->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user2->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user3->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user1->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user2->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user3->id]));
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof cohort_member_removed;
+        });
+        $this->assertCount(0, $events);
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof cohort_member_added;
+        });
+        $this->assertCount(0, $events);
+
+        $eventsink->clear();
+
+        // Enable rule and get all users added to Cohort2.
+        $rule->set('enabled', 1);
+        $rule->save();
+        rule_manager::process_rule($rule);
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user1->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user2->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user3->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user1->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user2->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user3->id]));
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof cohort_member_removed;
+        });
+        $this->assertCount(0, $events);
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof cohort_member_added;
+        });
+        $this->assertCount(3, $events);
+
+        $eventsink->clear();
+
+        // Now change the condition and let all users to be removed from Cohort2.
+        $condition->set_config_data([
+            'cohort_membership_operator' => cohort_membership::OPERATOR_IS_NOT_MEMBER_OF,
+            'cohort_membership_value' => [$cohort1->id],
+        ]);
+        $condition->get_record()->save();
+
+        rule_manager::process_rule($rule);
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user1->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user2->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user3->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user1->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user2->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user3->id]));
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof cohort_member_removed;
+        });
+        $this->assertCount(3, $events);
+        $eventsink->clear();
+
+        // Create a new user and check if we can process him individually.
+        $user4 = $this->getDataGenerator()->create_user(['username' => 'user4']);
+        rule_manager::process_rule($rule, $user4->id);
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof cohort_member_added;
+        });
+        $this->assertCount(1, $events);
+        $eventsink->clear();
+
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user1->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user2->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user3->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user4->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user1->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user2->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user3->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user4->id]));
+    }
+
+    /**
+     * Test rule processing in bulk.
+     */
+    public function test_rule_processing_with_bulk_processing_enabled() {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $user1 = $this->getDataGenerator()->create_user(['username' => 'user1']);
+        $user2 = $this->getDataGenerator()->create_user(['username' => 'user2']);
+        $user3 = $this->getDataGenerator()->create_user(['username' => 'test']);
+
+        $cohort1 = $this->getDataGenerator()->create_cohort();
+        $cohort2 = $this->getDataGenerator()->create_cohort();
+
+        cohort_add_member($cohort1->id, $user1->id);
+        cohort_add_member($cohort1->id, $user2->id);
+        cohort_add_member($cohort1->id, $user3->id);
+
+        $rule = new rule(0, (object)['name' => 'Test rule 1', 'cohortid' => $cohort2->id, 'bulkprocessing' => 1]);
+        $rule->save();
+
+        $condition = cohort_membership::get_instance(0, (object)['ruleid' => $rule->get('id'), 'sortorder' => 0]);
+        $condition->set_config_data([
+            'cohort_membership_operator' => cohort_membership::OPERATOR_IS_MEMBER_OF,
+            'cohort_membership_value' => [$cohort1->id],
+        ]);
+        $condition->get_record()->save();
+
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user1->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user2->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user3->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user1->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user2->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user3->id]));
+
+        $eventsink = $this->redirectEvents();
+
+        // Rule disabled by default.
+        rule_manager::process_rule($rule);
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user1->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user2->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user3->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user1->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user2->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user3->id]));
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof cohort_member_removed;
+        });
+        $this->assertCount(0, $events);
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof cohort_member_added;
+        });
+        $this->assertCount(0, $events);
+
+        $eventsink->clear();
+
+        $rule->set('enabled', 1);
+        $rule->save();
+        rule_manager::process_rule($rule);
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user1->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user2->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user3->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user1->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user2->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user3->id]));
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof cohort_member_removed;
+        });
+        $this->assertCount(0, $events);
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof cohort_member_added;
+        });
+        $this->assertCount(0, $events);
+
+        $eventsink->clear();
+
+        // Now change the condition and let all users to be removed from Cohort2.
+        $condition->set_config_data([
+            'cohort_membership_operator' => cohort_membership::OPERATOR_IS_NOT_MEMBER_OF,
+            'cohort_membership_value' => [$cohort1->id],
+        ]);
+        $condition->get_record()->save();
+
+        rule_manager::process_rule($rule);
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user1->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user2->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user3->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user1->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user2->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user3->id]));
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof cohort_member_removed;
+        });
+        $this->assertCount(0, $events);
+        $eventsink->clear();
+
+        // Create a new user and check if we can process him individually.
+        $user4 = $this->getDataGenerator()->create_user(['username' => 'user4']);
+        rule_manager::process_rule($rule, $user4->id);
+
+        $events = array_filter($eventsink->get_events(), function ($event) {
+            return $event instanceof cohort_member_added;
+        });
+        $this->assertCount(0, $events);
+        $eventsink->clear();
+
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user1->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user2->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user3->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort1->id, 'userid' => $user4->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user1->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user2->id]));
+        $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user3->id]));
+        $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user4->id]));
     }
 }

@@ -18,6 +18,7 @@ namespace tool_dynamic_cohorts;
 
 use moodle_url;
 use moodle_exception;
+use tool_dynamic_cohorts\event\matching_failed;
 use tool_dynamic_cohorts\event\rule_created;
 use tool_dynamic_cohorts\event\rule_deleted;
 use tool_dynamic_cohorts\event\rule_updated;
@@ -30,6 +31,11 @@ use tool_dynamic_cohorts\event\rule_updated;
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class rule_manager {
+
+    /**
+     * A number of users for a bulk processing.
+     */
+    const BULK_PROCESSING_SIZE = 10000;
 
     /**
      * Builds rule edit URL.
@@ -185,6 +191,155 @@ class rule_manager {
             rule_deleted::create(['other' => ['ruleid' => $oldruleid]])->trigger();
             condition_manager::delete_conditions($conditions);
             cohort_manager::unmanage_cohort($rule->get('cohortid'));
+        }
+    }
+
+    /**
+     * Returns a list of all matching users for provided rule.
+     *
+     * @param rule $rule A rule to get a list of users.
+     * @param int|null $userid Optional user ID if we need to check just one user.
+     *
+     * @return array
+     */
+    public static function get_matching_users(rule $rule, ?int $userid = null): array {
+        global $DB;
+
+        $conditions = $rule->get_condition_records();
+
+        if (empty($conditions)) {
+            return [];
+        }
+
+        $where = ' u.deleted = 0 ';
+        $join = '';
+        $params = [];
+
+        $sql = "SELECT DISTINCT u.id FROM {user} u";
+
+        foreach ($conditions as $condition) {
+            try {
+                $instance = condition_base::get_instance(0, $condition->to_record());
+
+                if (!$instance || $instance->is_broken()) {
+                    return [];
+                }
+
+                $sqldata = $instance->get_sql();
+
+                if (!empty($sqldata->get_join())) {
+                    $join .= ' ' . $sqldata->get_join();
+                }
+
+                if (!empty($sqldata->get_where())) {
+                    $where .= ' AND (' . $sqldata->get_where() . ')';
+                }
+
+                if (!empty($sqldata->get_params())) {
+                    $params += $sqldata->get_params();
+                }
+            } catch (\Exception $exception ) {
+                matching_failed::create([
+                    'other' => [
+                        'ruleid' => $rule->get('id'),
+                        'error' => $exception->getMessage(),
+                    ],
+                ])->trigger();
+
+                $rule->mark_broken();
+                return [];
+            }
+        }
+
+        if ($userid) {
+            $userparam = condition_sql::generate_param_alias();
+            $where .= " AND u.id = :{$userparam} ";
+            $params += [$userparam => $userid];
+        }
+
+        try {
+            return $DB->get_records_sql($sql . $join . ' WHERE ' . $where, $params);
+        } catch (\Exception $exception) {
+            matching_failed::create([
+                'other' => [
+                    'ruleid' => $rule->get('id'),
+                    'error' => $exception->getMessage(),
+                ],
+            ])->trigger();
+
+            $rule->mark_broken();
+
+            return  [];
+        }
+    }
+
+    /**
+     * Process a given rule.
+     *
+     * @param rule $rule A rule to process.
+     * @param int|null $userid Optional user ID for processing a rule just for a single user.
+     */
+    public static function process_rule(rule $rule, ?int $userid = null): void {
+        global $DB;
+
+        if (!$rule->is_enabled() || $rule->is_broken()) {
+            return;
+        }
+
+        if ($rule->is_broken(true)) {
+            $rule->mark_broken();
+            return;
+        }
+
+        $cohortid = $rule->get('cohortid');
+
+        if (!$DB->record_exists('cohort', ['id' => $cohortid])) {
+            $rule->mark_broken();
+            return;
+        }
+
+        $users = self::get_matching_users($rule, $userid);
+
+        $cohortmembersparams = ['cohortid' => $cohortid];
+
+        if (!empty($userid)) {
+            $cohortmembersparams['userid'] = $userid;
+        }
+
+        $cohortmembers = $DB->get_records('cohort_members', $cohortmembersparams, '', 'userid');
+
+        $userstoadd = array_diff_key($users, $cohortmembers);
+        $userstodelete = array_diff_key($cohortmembers, $users);
+
+        if ($rule->is_bulk_processing()) {
+            $timeadded = time();
+            foreach (array_chunk($userstoadd, self::BULK_PROCESSING_SIZE) as $users) {
+                $records = [];
+                foreach ($users as $user) {
+                    $record = new \stdClass();
+                    $record->userid = $user->id;
+                    $record->cohortid = $cohortid;
+                    $record->timeadded = $timeadded;
+                    $records[] = $record;
+                }
+                $DB->insert_records('cohort_members', $records);
+            }
+
+            foreach (array_chunk($userstodelete, self::BULK_PROCESSING_SIZE) as $users) {
+                $userids = array_column($users, 'userid');
+                list($insql, $inparams) = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED);
+                $sql = "userid $insql AND cohortid = :cohort";
+                $inparams['cohort'] = $cohortid;
+                $DB->delete_records_select('cohort_members', $sql, $inparams);
+            }
+        } else {
+            foreach ($userstoadd as $user) {
+                cohort_add_member($cohortid, $user->id);
+            }
+
+            foreach ($userstodelete as $user) {
+                cohort_remove_member($cohortid, $user->userid);
+            }
         }
     }
 }

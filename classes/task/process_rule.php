@@ -14,19 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
+namespace tool_dynamic_cohorts\task;
+
+use core\task\adhoc_task;
+use tool_dynamic_cohorts\rule_manager;
+use tool_dynamic_cohorts\rule;
+
 /**
- * Plugin version and other meta-data are defined here.
+ * Processing a single rule.
  *
  * @package     tool_dynamic_cohorts
  * @copyright   2024 Catalyst IT
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+class process_rule extends adhoc_task {
 
-defined('MOODLE_INTERNAL') || die();
+    /**
+     * Task execution
+     */
+    public function execute() {
+        $ruleid = $this->get_custom_data();
 
-$plugin->component = 'tool_dynamic_cohorts';
-$plugin->release = 2024030700;
-$plugin->version = 2024030700;
-$plugin->requires = 2022112800;
-$plugin->supported = [401, 403];
-$plugin->maturity = MATURITY_ALPHA;
+        try {
+            $rule = rule::get_record(['id' => $ruleid]);
+        } catch (\Exception $e) {
+            mtrace("Processing dynamic cohort rules: rule with ID  {$ruleid} is not found.");
+            return;
+        }
+
+        mtrace("Processing dynamic cohort rules: processing rule with id  {$ruleid}");
+        rule_manager::process_rule($rule);
+    }
+}
