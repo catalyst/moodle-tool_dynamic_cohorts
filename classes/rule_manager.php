@@ -125,8 +125,11 @@ class rule_manager {
                 rule_updated::create(['other' => ['ruleid' => $rule->get('id')]])->trigger();
             }
 
-            cohort_manager::unmanage_cohort($oldcohortid);
-            cohort_manager::manage_cohort($formdata->cohortid);
+            if ($oldcohortid != $formdata->cohortid) {
+                cohort_manager::unmanage_cohort($oldcohortid);
+                cohort_manager::manage_cohort($formdata->cohortid);
+            }
+
             condition_manager::process_form($rule, $formdata);
 
             if ($rule->is_broken(true)) {
@@ -180,12 +183,7 @@ class rule_manager {
 
         if ($rule->delete()) {
             rule_deleted::create(['other' => ['ruleid' => $oldruleid]])->trigger();
-
-            // Delete related condition in a loop to be able to trigger events.
-            foreach ($conditions as $condition) {
-                $condition->delete();
-            }
-
+            condition_manager::delete_conditions($conditions);
             cohort_manager::unmanage_cohort($rule->get('cohortid'));
         }
     }

@@ -17,6 +17,9 @@
 namespace tool_dynamic_cohorts;
 
 use core_component;
+use tool_dynamic_cohorts\event\condition_created;
+use tool_dynamic_cohorts\event\condition_deleted;
+use tool_dynamic_cohorts\event\condition_updated;
 
 /**
  * Condition manager class.
@@ -74,19 +77,29 @@ class condition_manager {
                 if (empty($condition->get('id'))) {
                     $condition->set('ruleid', $rule->get('id'));
                     $condition->create();
+                    self::trigger_condition_event(condition_created::class, $condition, []);
                 } else {
                     $toupdate[$condition->get('id')] = $condition;
                 }
             }
 
             $todelete = array_diff_key($oldconditions, $toupdate);
-
-            foreach ($todelete as $conditiontodelete) {
-                $conditiontodelete->delete();
-            }
+            self::delete_conditions($todelete);
 
             foreach ($toupdate as $conditiontoupdate) {
+                $olddescription = $conditiontoupdate->get('configdata');
+                $instance = condition_base::get_instance(0, $conditiontoupdate->to_record());
+                if ($instance && !$instance->is_broken()) {
+                    $olddescription = $instance->get_config_description();
+                }
+
                 $conditiontoupdate->save();
+
+                self::trigger_condition_event(condition_updated::class, $conditiontoupdate, [
+                    'other' => [
+                        'olddescription' => $olddescription,
+                    ],
+                ]);
             }
         }
     }
@@ -121,5 +134,53 @@ class condition_manager {
         }
 
         return $conditions;
+    }
+
+    /**
+     * Delete conditions.
+     *
+     * @param \tool_dynamic_cohorts\condition[] $conditions A list of conditions to be deleted.
+     */
+    public static function delete_conditions(array $conditions): void {
+        foreach ($conditions as $condition) {
+            if ($condition instanceof condition) {
+                $condition->delete();
+                self::trigger_condition_event(condition_deleted::class, $condition, [
+                    'other' => [
+                        'ruleid' => $condition->get('ruleid'),
+                    ],
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Trigger condition related event.
+     *
+     * @param string $eventclass Full event class name, e.g. \tool_dynamic_cohorts\event\condition_updated.
+     * @param condition $condition Related condition object.
+     * @param array $data Event related data.
+     */
+    private static function trigger_condition_event(string $eventclass, condition $condition, array $data): void {
+        $instance = condition_base::get_instance(0, $condition->to_record());
+
+        if (!isset($data['other']['ruleid'])) {
+            $data['other']['ruleid'] = $condition->get('ruleid');
+        }
+
+        // In case that the class related to that condition is not found,
+        // we use data that we know about that condition such as class name and raw config.
+        if (!$instance) {
+            $name = $condition->get('classname');
+            $description = $condition->get('configdata');
+        } else {
+            $name = $instance->get_name();
+            $description = $instance->is_broken() ? $instance->get_broken_description() : $instance->get_config_description();
+        }
+
+        $data['other']['name'] = $name;
+        $data['other']['description'] = $description;
+
+        $eventclass::create($data)->trigger();
     }
 }
