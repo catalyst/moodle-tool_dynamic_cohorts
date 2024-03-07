@@ -14,19 +14,40 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
+namespace tool_dynamic_cohorts\task;
+
+use core\task\manager;
+use core\task\scheduled_task;
+use tool_dynamic_cohorts\rule;
+
 /**
- * Plugin version and other meta-data are defined here.
+ * Processing rules.
  *
  * @package     tool_dynamic_cohorts
  * @copyright   2024 Catalyst IT
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+class process_rules extends scheduled_task {
 
-defined('MOODLE_INTERNAL') || die();
+    /**
+     * Task name.
+     */
+    public function get_name() {
+        return get_string('processrulestask', 'tool_dynamic_cohorts');
+    }
 
-$plugin->component = 'tool_dynamic_cohorts';
-$plugin->release = 2024030700;
-$plugin->version = 2024030700;
-$plugin->requires = 2022112800;
-$plugin->supported = [401, 403];
-$plugin->maturity = MATURITY_ALPHA;
+    /**
+     * Task execution.
+     */
+    public function execute() {
+        $rules = rule::get_records(['enabled' => 1, 'broken' => 0], 'id');
+
+        foreach ($rules as $rule) {
+            $adhoctask = new process_rule();
+            $adhoctask->set_custom_data($rule->get('id'));
+            $adhoctask->set_component('tool_dynamic_cohorts');
+
+            manager::queue_adhoc_task($adhoctask, true);
+        }
+    }
+}

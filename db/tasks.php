@@ -15,18 +15,22 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Plugin version and other meta-data are defined here.
+ * Tasks description.
  *
  * @package     tool_dynamic_cohorts
  * @copyright   2024 Catalyst IT
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'tool_dynamic_cohorts';
-$plugin->release = 2024030700;
-$plugin->version = 2024030700;
-$plugin->requires = 2022112800;
-$plugin->supported = [401, 403];
-$plugin->maturity = MATURITY_ALPHA;
+$tasks = [
+    [
+        'classname' => 'tool_dynamic_cohorts\task\process_rules',
+        'blocking' => 0,
+        'minute' => '*',
+        'hour' => '*',
+        'day' => '*',
+        'dayofweek' => '*',
+        'month' => '*',
+    ],
+];
