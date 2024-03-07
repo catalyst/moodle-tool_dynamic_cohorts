@@ -16,6 +16,7 @@
 
 namespace tool_dynamic_cohorts;
 
+use cache;
 use core\event\cohort_member_removed;
 use core\event\cohort_member_added;
 use moodle_url;
@@ -821,5 +822,68 @@ class rule_manager_test extends \advanced_testcase {
         $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user2->id]));
         $this->assertFalse($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user3->id]));
         $this->assertTrue($DB->record_exists('cohort_members', ['cohortid' => $cohort2->id, 'userid' => $user4->id]));
+    }
+
+    /**
+     * Test getting rules with condition.
+     */
+    public function test_get_rules_with_condition() {
+        $this->resetAfterTest();
+
+        $rule1 = new rule(0, (object)['name' => 'Test rule1 1', 'enabled' => 1]);
+        $rule1->save();
+
+        $rule2 = new rule(0, (object)['name' => 'Test rule1 2', 'enabled' => 0]);
+        $rule2->save();
+
+        $rule3 = new rule(0, (object)['name' => 'Test rule1 3', 'enabled' => 1]);
+        $rule3->save();
+
+        $classname = 'tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_profile';
+        $cache = cache::make('tool_dynamic_cohorts', 'rulesconditions');
+        $key = $classname;
+
+        $this->assertFalse( $cache->get($key));
+
+        $condition1 = $this->get_condition($classname);
+        $record1 = $condition1->get_record();
+        $record1->set('ruleid', $rule1->get('id'));
+        $record1->set('sortorder', 0);
+        $record1->save();
+
+        $condition2 = $this->get_condition($classname);
+        $record2 = $condition2->get_record();
+        $record2->set('ruleid', $rule2->get('id'));
+        $record2->set('sortorder', 0);
+        $record2->save();
+
+        $condition3 = $this->get_condition($classname);
+        $record3 = $condition3->get_record();
+        $record3->set('ruleid', $rule3->get('id'));
+        $record3->set('sortorder', 0);
+        $record3->save();
+
+        $rules = rule_manager::get_rules_with_condition($condition1);
+
+        $this->assertCount(2, $rules);
+        $this->assertArrayHasKey($rule1->get('id'), $rules);
+        $this->assertArrayHasKey($rule3->get('id'), $rules);
+        $this->assertSame($rules, $cache->get($key));
+
+        $rule1->delete();
+        $this->assertFalse($cache->get($key));
+
+        $rules = rule_manager::get_rules_with_condition($condition1);
+        $this->assertSame($rules, $cache->get($key));
+
+        $rule2->save();
+        $this->assertFalse($cache->get($key));
+
+        $rules = rule_manager::get_rules_with_condition($condition1);
+        $this->assertSame($rules, $cache->get($key));
+
+        $rule4 = new rule(0, (object)['name' => 'Test rule1 3', 'enabled' => 1]);
+        $rule4->save();
+        $this->assertFalse($cache->get($key));
     }
 }

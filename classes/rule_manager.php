@@ -16,6 +16,7 @@
 
 namespace tool_dynamic_cohorts;
 
+use cache;
 use moodle_url;
 use moodle_exception;
 use tool_dynamic_cohorts\event\matching_failed;
@@ -341,5 +342,41 @@ class rule_manager {
                 cohort_remove_member($cohortid, $user->userid);
             }
         }
+    }
+
+    /**
+     * Returns a list of rules with provided condition.
+     *
+     * @param \tool_dynamic_cohorts\condition_base $condition Condition to check.
+     * @return rule[]
+     */
+    public static function get_rules_with_condition(condition_base $condition): array {
+        global $DB;
+
+        $classname = get_class($condition);
+
+        $cache = cache::make('tool_dynamic_cohorts', 'rulesconditions');
+        $key = $classname;
+
+        $rules = $cache->get($key);
+
+        if ($rules === false) {
+            $rules = [];
+            $sql = 'SELECT DISTINCT r.id
+                      FROM {tool_dynamic_cohorts} r
+                      JOIN {tool_dynamic_cohorts_c} c ON c.ruleid = r.id
+                     WHERE c.classname = ?
+                       AND r.enabled = 1 ORDER BY r.id';
+
+            $records = $DB->get_records_sql($sql, [$classname]);
+
+            foreach ($records as $record) {
+                $rules[$record->id] = new rule($record->id);
+            }
+
+            $cache->set($key, $rules);
+        }
+
+        return $rules;
     }
 }

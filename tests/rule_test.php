@@ -16,6 +16,8 @@
 
 namespace tool_dynamic_cohorts;
 
+use cache;
+
 /**
  * Tests for rule class.
  *
@@ -44,7 +46,7 @@ class rule_test extends \advanced_testcase {
     /**
      * Test is_bulk_processing.
      */
-    public function is_bulk_processing() {
+    public function test_is_bulk_processing() {
         $this->resetAfterTest();
 
         $rule = new rule(0, (object)['name' => 'Test rule bulk processing', 'bulkprocessing' => 1]);
@@ -75,6 +77,45 @@ class rule_test extends \advanced_testcase {
 
         $this->assertEquals($actual[$condition1->get('id')]->to_record(), $condition1->to_record());
         $this->assertEquals($actual[$condition2->get('id')]->to_record(), $condition2->to_record());
+    }
+
+    /**
+     * Test cache for condition records.
+     */
+    public function test_condition_records_get_cached() {
+        $this->resetAfterTest();
+
+        $cache = cache::make('tool_dynamic_cohorts', 'conditionrecords');
+
+        $rule = new rule(0, (object)['name' => 'Test rule']);
+        $rule->save();
+        $key = $rule->get('id');
+
+        $this->assertFalse($cache->get($key));
+
+        $this->assertEmpty($rule->get_condition_records());
+        $this->assertIsArray($cache->get($key));
+        $this->assertEquals([], $cache->get($key));
+
+        // Saving rule should purge the cache.
+        $rule->save();
+        $this->assertFalse($cache->get($key));
+
+        $condition1 = new condition(0, (object)['ruleid' => $rule->get('id'), 'classname' => 'test', 'sortorder' => 0]);
+        $condition1->save();
+        $condition2 = new condition(0, (object)['ruleid' => $rule->get('id'), 'classname' => 'test', 'sortorder' => 1]);
+        $condition2->save();
+
+        // Saving conditions should purge the cache.
+        $this->assertFalse($cache->get($key));
+
+        $expected = $rule->get_condition_records();
+
+        $this->assertCount(2, $expected);
+        $this->assertEquals($expected[$condition1->get('id')]->to_record(), $condition1->to_record());
+        $this->assertEquals($expected[$condition2->get('id')]->to_record(), $condition2->to_record());
+
+        $this->assertSame($expected, $cache->get($key));
     }
 
     /**
