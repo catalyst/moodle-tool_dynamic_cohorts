@@ -20,6 +20,7 @@ use tool_dynamic_cohorts\condition_base;
 use tool_dynamic_cohorts\condition_sql;
 use core_user;
 use core_plugin_manager;
+use coding_exception;
 
 /**
  * Condition using standard user profile.
@@ -29,11 +30,6 @@ use core_plugin_manager;
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class user_profile extends condition_base {
-
-    /**
-     * Base field nname.
-     */
-    public const FIELD_NAME = 'profilefield';
 
     /**
      * Value for text field types.
@@ -92,6 +88,15 @@ class user_profile extends condition_base {
         'city', 'country', 'institution', 'department'];
 
     /**
+     * Return field name in the condition config form.
+     *
+     * @return string
+     */
+    protected static function get_form_field(): string {
+        return 'profilefield';
+    }
+
+    /**
      * Condition name.
      *
      * @return string
@@ -114,16 +119,18 @@ class user_profile extends condition_base {
         }
 
         $group = [];
-        $group[] = $mform->createElement('select', self::FIELD_NAME, '', $options);
+        $group[] = $mform->createElement('select', static::get_form_field(), '', $options);
 
         foreach ($fields as $shortname => $field) {
             switch ($field->datatype) {
                 case self::FIELD_DATA_TYPE_TEXT:
                     $this->add_text_field($mform, $group, $field, $shortname);
                     break;
-                case  self::FIELD_DATA_TYPE_MENU:
+                case self::FIELD_DATA_TYPE_MENU:
                     $this->add_menu_field($mform, $group, $field, $shortname);
                     break;
+                default:
+                    throw new coding_exception('Invalid field type ' . $field->datatype);
             }
         }
 
@@ -140,13 +147,13 @@ class user_profile extends condition_base {
         $errors = [];
 
         $fields = $this->get_fields_info();
-        if (empty($data[self::FIELD_NAME]) || !isset($data[self::FIELD_NAME]) || !isset($fields[$data[self::FIELD_NAME]])) {
+        if (empty($data[static::get_form_field()]) || !isset($fields[$data[static::get_form_field()]])) {
             $errors['profilefieldgroup'] = get_string('pleaseselectfield', 'tool_dynamic_cohorts');
         }
 
-        $fieldvalue = $data[self::FIELD_NAME] . '_value';
-        $operator = $data[self::FIELD_NAME] . '_operator';
-        $datatype = $fields[$data[self::FIELD_NAME]]->datatype ?? '';
+        $fieldvalue = $data[static::get_form_field()] . '_value';
+        $operator = $data[static::get_form_field()] . '_operator';
+        $datatype = $fields[$data[static::get_form_field()]]->datatype ?? '';
 
         if (empty($data[$fieldvalue])) {
             if ($datatype == 'text' && !in_array($data[$operator], [self::TEXT_IS_EMPTY, self::TEXT_IS_NOT_EMPTY])) {
@@ -165,12 +172,12 @@ class user_profile extends condition_base {
      */
     public static function retrieve_config_data(\stdClass $formdata): array {
         $configdata = parent::retrieve_config_data($formdata);
-        $fieldname = $configdata[self::FIELD_NAME];
+        $fieldname = $configdata[static::get_form_field()];
 
         $data = [];
 
         // Get field name itself.
-        $data[self::FIELD_NAME] = $fieldname;
+        $data[static::get_form_field()] = $fieldname;
 
         // Only get values related to the selected field name, e.g firstname_operator, firstname_value.
         foreach ($configdata as $key => $value) {
@@ -262,7 +269,7 @@ class user_profile extends condition_base {
         $mform->hideIf($shortname . '_value', $shortname . '_operator', 'in', self::TEXT_IS_EMPTY . '|' . self::TEXT_IS_NOT_EMPTY);
 
         $group[] = $mform->createElement('group', $shortname, '', $elements, '', false);
-        $mform->hideIf($shortname, self::FIELD_NAME, 'neq', $shortname);
+        $mform->hideIf($shortname, static::get_form_field(), 'neq', $shortname);
     }
 
     /**
@@ -282,7 +289,7 @@ class user_profile extends condition_base {
         $mform->hideIf($shortname . '_value', $shortname . '_operator', 'in', self::TEXT_IS_EMPTY . '|' . self::TEXT_IS_NOT_EMPTY);
 
         $group[] = $mform->createElement('group', $shortname, '', $elements, '', false);
-        $mform->hideIf($shortname, self::FIELD_NAME, 'neq', $shortname);
+        $mform->hideIf($shortname, static::get_form_field(), 'neq', $shortname);
     }
 
     /**
@@ -291,7 +298,7 @@ class user_profile extends condition_base {
      * @return string
      */
     protected function get_field_name(): string {
-        return $this->get_config_data()[self::FIELD_NAME];
+        return $this->get_config_data()[static::get_form_field()];
     }
 
     /**
@@ -349,7 +356,7 @@ class user_profile extends condition_base {
     }
 
     /**
-     * Human readable description of the configured condition.
+     * Human-readable description of the configured condition.
      *
      * @return string
      */

@@ -16,6 +16,7 @@
 
 namespace tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition;
 
+use coding_exception;
 use tool_dynamic_cohorts\condition_sql;
 
 /**
@@ -26,6 +27,7 @@ use tool_dynamic_cohorts\condition_sql;
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class user_custom_profile extends user_profile {
+
     /**
      * Field name to store include missing data option,
      */
@@ -34,7 +36,12 @@ class user_custom_profile extends user_profile {
     /**
      * A list of supported custom profile fields.
      */
-    protected const SUPPORTED_CUSTOM_FIELDS = ['text', 'menu'];
+    protected const SUPPORTED_CUSTOM_FIELDS = ['text', 'menu', 'checkbox'];
+
+    /**
+     * Value for checkbox field types.
+     */
+    public const FIELD_DATA_TYPE_CHECKBOX = 'checkbox';
 
     /**
      * Custom field prefix.
@@ -51,7 +58,7 @@ class user_custom_profile extends user_profile {
     }
 
     /**
-     * Returns a list of all fields with extra data (shortname, name, datatype, param1 and type).
+     * Returns a list of all fields with extra data (shortname, name, datatype and param1).
      *
      * @return \stdClass[]
      */
@@ -70,11 +77,19 @@ class user_custom_profile extends user_profile {
             $field = (object)array_intersect_key((array)$customfield->field,
                 ['shortname' => 1, 'name' => 1, 'datatype' => 1, 'param1' => 1]);
 
-            if ($field->datatype == self::FIELD_DATA_TYPE_MENU) {
-                $options = explode("\n", $field->param1);
-                $field->param1 = array_combine($options, $options);
-            } else if ($field->datatype == 'text') {
-                $field->paramtype = PARAM_TEXT;
+            switch ($field->datatype) {
+                case self::FIELD_DATA_TYPE_MENU:
+                    $options = explode("\n", $field->param1);
+                    $field->param1 = array_combine($options, $options);
+                    break;
+                case self::FIELD_DATA_TYPE_TEXT:
+                    $field->paramtype = PARAM_TEXT;
+                    break;
+                case self::FIELD_DATA_TYPE_CHECKBOX:
+                    $field->param1 = array_combine([0, 1], [get_string('no'), get_string('yes')]);
+                    break;
+                default:
+                    throw new coding_exception('Invalid field type ' . $field->datatype);
             }
 
             $shortname = self::FIELD_PREFIX . $field->shortname;
@@ -90,7 +105,31 @@ class user_custom_profile extends user_profile {
      * @param \MoodleQuickForm $mform
      */
     public function config_form_add(\MoodleQuickForm $mform): void {
-        parent::config_form_add($mform);
+        $options = [0 => get_string('select')];
+
+        $fields = $this->get_fields_info();
+        foreach ($fields as $shortname => $field) {
+            $options[$shortname] = $field->name;
+        }
+
+        $group = [];
+        $group[] = $mform->createElement('select', static::get_form_field(), '', $options);
+
+        foreach ($fields as $shortname => $field) {
+            switch ($field->datatype) {
+                case self::FIELD_DATA_TYPE_TEXT:
+                    $this->add_text_field($mform, $group, $field, $shortname);
+                    break;
+                case  self::FIELD_DATA_TYPE_MENU:
+                    $this->add_menu_field($mform, $group, $field, $shortname);
+                    break;
+                case  self::FIELD_DATA_TYPE_CHECKBOX:
+                    $this->add_checkbox_field($mform, $group, $field, $shortname);
+                    break;
+            }
+        }
+
+        $mform->addGroup($group, 'profilefieldgroup', get_string('profilefield', 'tool_dynamic_cohorts'), '', false);
 
         $mform->addElement(
             'checkbox',
@@ -102,6 +141,23 @@ class user_custom_profile extends user_profile {
         $mform->addHelpButton(self::INCLUDE_MISSING_DATA_FIELD_NAME, self::INCLUDE_MISSING_DATA_FIELD_NAME, 'tool_dynamic_cohorts');
     }
 
+    /**
+     * Adds a check box field to the form.
+     *
+     * @param \MoodleQuickForm $mform Form to add the field to.
+     * @param array $group A group to add the field to.
+     * @param \stdClass $field Field info.
+     * @param string $shortname A field shortname.
+     */
+    protected function add_checkbox_field(\MoodleQuickForm $mform, array &$group, \stdClass $field, string $shortname): void {
+        $options = (array) $field->param1;
+
+        $elements = [];
+        $elements[] = $mform->createElement('hidden', $shortname . '_operator', self::TEXT_IS_EQUAL_TO);
+        $elements[] = $mform->createElement('select', $shortname . '_value', $field->name, $options);
+        $group[] = $mform->createElement('group', $shortname, '', $elements, '', false);
+        $mform->hideIf($shortname, static::get_form_field(), 'neq', $shortname);
+    }
     /**
      * Gets required config data from submitted condition form data.
      *
@@ -121,24 +177,7 @@ class user_custom_profile extends user_profile {
      * @return bool
      */
     protected function should_include_missing_data(): bool {
-        if (in_array($this->get_operator_value(), $this->missing_data_operators())) {
-            return !empty($this->get_config_data()[self::INCLUDE_MISSING_DATA_FIELD_NAME]);
-        }
-
-        return false;
-    }
-
-    /**
-     * A list of operators that getting missing data does make sense for.
-     *
-     * @return array
-     */
-    protected function missing_data_operators(): array {
-        return [
-            self::TEXT_DOES_NOT_CONTAIN,
-            self::TEXT_IS_NOT_EQUAL_TO,
-            self::TEXT_IS_EMPTY,
-        ];
+        return !empty($this->get_config_data()[self::INCLUDE_MISSING_DATA_FIELD_NAME]);
     }
 
     /**
@@ -157,6 +196,7 @@ class user_custom_profile extends user_profile {
             case self::FIELD_DATA_TYPE_TEXT:
                 $result = $this->get_text_sql_data($ud, 'data');
                 break;
+            case self::FIELD_DATA_TYPE_CHECKBOX:
             case self::FIELD_DATA_TYPE_MENU:
                 $result = $this->get_menu_sql_data($ud, 'data');
                 break;
@@ -189,6 +229,26 @@ class user_custom_profile extends user_profile {
         }
 
         return $result;
+    }
+
+    /**
+     * Returns a value of the configured field.
+     *
+     * @return string|null
+     */
+    protected function get_field_value(): ?string {
+        $fieldvalue = parent::get_field_value();
+
+        // A special case for checkbox field.
+        $fieldname = $this->get_field_name();
+        if (!empty($fieldname) && !empty($this->get_fields_info()[$fieldname])) {
+            $datatype = $this->get_fields_info()[$fieldname]->datatype;
+            if ($datatype == self::FIELD_DATA_TYPE_CHECKBOX) {
+                $fieldvalue = empty($fieldvalue) ? get_string('no') : get_string('yes');
+            }
+        }
+
+        return $fieldvalue;
     }
 
     /**

@@ -30,6 +30,15 @@ use core_plugin_manager;
 class auth_method extends user_profile {
 
     /**
+     * Return field name in the condition config form.
+     *
+     * @return string
+     */
+    protected static function get_form_field(): string {
+        return 'authmethod';
+    }
+
+    /**
      * Condition name.
      *
      * @return string
@@ -46,8 +55,8 @@ class auth_method extends user_profile {
     public function config_form_add(\MoodleQuickForm $mform): void {
         $fields = $this->get_fields_info();
 
-        $mform->addElement('hidden', self::FIELD_NAME, 'auth');
-        $mform->setType(self::FIELD_NAME, PARAM_ALPHA);
+        $mform->addElement('hidden', static::get_form_field(), 'auth');
+        $mform->setType(static::get_form_field(), PARAM_ALPHA);
 
         $group = [];
         $this->add_menu_field($mform, $group, $fields['auth'], 'auth');
