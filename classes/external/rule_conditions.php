@@ -73,10 +73,12 @@ class rule_conditions extends external_api {
                 $name = $condition->get('classname');
                 $description = $condition->get('configdata');
                 $configdata = $condition->get('configdata');
+                $broken = false;
             } else {
                 $name = $instance->get_name();
                 $description = $instance->is_broken() ? $instance->get_broken_description() : $instance->get_config_description();
                 $configdata = json_encode($instance->get_config_data());
+                $broken = $instance->is_broken();
             }
 
             $conditions[$condition->get('id')] = [
@@ -86,6 +88,7 @@ class rule_conditions extends external_api {
                 'configdata' => $configdata,
                 'description' => $description,
                 'name' => $name,
+                'broken' => $broken,
             ];
         }
 
@@ -106,6 +109,7 @@ class rule_conditions extends external_api {
                 'configdata' => new external_value(PARAM_RAW, ''),
                 'description' => new external_value(PARAM_RAW, ''),
                 'name' => new external_value(PARAM_RAW, ''),
+                'broken' => new external_value(PARAM_BOOL, ''),
             ])
         );
     }

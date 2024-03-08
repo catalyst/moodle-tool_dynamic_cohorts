@@ -110,7 +110,8 @@ class rule_manager_test extends \advanced_testcase {
         $condition = condition::get_record(['id' => $instance->get_record()->get('id')]);
         $conditions[] = (array) $condition->to_record() +
             ['description' => $instance->get_config_description()] +
-            ['name' => $instance->get_name()];
+            ['name' => $instance->get_name()] +
+            ['broken' => false];
 
         $expected = [
             'name' => 'Test rule',
