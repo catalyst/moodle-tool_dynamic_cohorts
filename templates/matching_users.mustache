@@ -12,28 +12,20 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 }}
 {{!
-    @template tool_dynamic_cohorts/button
+    @template tool_dynamic_cohorts/matching_users
 
-    Button to add a new rule.
-
-    Classes required for JS:
-    * none
-
-    Data attributes required for JS:
-    * none
-
-    Context variables required for this template:
-    * url - URL of edit page.
+    Matching html element.
 
     Example context (json):
     {
-        "url" : "https://example.com/admin/tool/dynamic_cohorts/edit.php"
+        "ruleid": "10",
+        "url": "https://example.com/admin/tool/dynamic_cohorts/users.php?ruleid=12"
     }
 }}
-
-<a href="{{url}}" class="btn btn-primary">
-    {{#str}}addrule, tool_dynamic_cohorts{{/str}}
-</a>
+<div class="tool-dynamic-cohorts-matching-users" data-ruleid="{{ruleid}}">
+    <span class="">{{#pix}} i/loading, core, {{#str}} loading {{/str}} {{/pix}}</span>
+    <div class="hidden"><a href="{{{url}}}"></a></div>
+</div>

@@ -87,8 +87,10 @@ class condition_sql {
      * @return string
      */
     public static function generate_param_alias(): string {
-        static $cnt = 0;
-        return 'tcmp' . ($cnt++);
+        static $sqlcnt = 1000;
+
+        // We need to match report builder parameter prefix, otherwise it doesn't pass validation when we use it in RB.
+        return 'rbparam' . ($sqlcnt++);
     }
 
     /**
@@ -97,7 +99,9 @@ class condition_sql {
      * @return string
      */
     public static function generate_table_alias(): string {
-        static $cnt = 0;
-        return 'tcmf' . ($cnt++);
+        static $sqlcnt = 1000;
+
+        // We need to match report builder alias prefix, otherwise it doesn't pass validation when we use it in RB.
+        return 'rbalias' . ($sqlcnt++);
     }
 }
