@@ -76,16 +76,20 @@ class rule_manager {
             $instance = condition_base::get_instance(0, $condition->to_record());
 
             if (!$instance) {
+                $broken = false;
                 $name = $condition->get('classname');
                 $description = $condition->get('configdata');
             } else {
+                $broken = $instance->is_broken();
                 $name = $instance->get_name();
-                $description = $instance->is_broken() ? $instance->get_broken_description() : $instance->get_config_description();
+                $description = $broken ? $instance->get_broken_description() : $instance->get_config_description();
             }
 
             $conditions[] = (array)$condition->to_record() +
                 ['description' => $description] +
-                ['name' => $name];
+                ['name' => $name] +
+                ['broken' => $broken];
+            ;
         }
 
         if (!empty($conditions)) {

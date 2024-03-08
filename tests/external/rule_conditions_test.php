@@ -119,9 +119,18 @@ class rule_conditions_test extends externallib_advanced_testcase {
         $condition3 = new condition(0, (object)['ruleid' => $rule->get('id'), 'classname' => 'test', 'sortorder' => 2]);
         $condition3->save();
 
+        // Broken condition.
+        $condition4 = user_profile::get_instance(0, (object)['ruleid' => $rule->get('id'), 'sortorder' => 1]);
+        $condition4->set_config_data([
+            'profilefield' => 'username',
+            'username_operator' => user_profile::TEXT_IS_EQUAL_TO,
+            'username_value' => '',
+        ]);
+        $condition4->get_record()->save();
+
         $conditions = rule_conditions::get_conditions($rule->get('id'));
         $this->assertIsArray($conditions);
-        $this->assertCount(3, $conditions);
+        $this->assertCount(4, $conditions);
 
         $this->assertArrayHasKey($condition1->get_record()->get('id'), $conditions);
         $this->assertArrayHasKey($condition2->get_record()->get('id'), $conditions);
@@ -162,5 +171,23 @@ class rule_conditions_test extends externallib_advanced_testcase {
         $this->assertSame('{}', $conditions[$condition3->get('id')]['configdata']);
         $this->assertSame('{}', $conditions[$condition3->get('id')]['description']);
         $this->assertSame('test', $conditions[$condition3->get('id')]['name']);
+
+        $this->assertSame($condition4->get_record()->get('id'), $conditions[$condition4->get_record()->get('id')]['id']);
+        $this->assertSame(1, $conditions[$condition4->get_record()->get('id')]['sortorder']);
+        $this->assertSame(
+            'tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_profile',
+            $conditions[$condition4->get_record()->get('id')]['classname']
+        );
+        $this->assertSame(
+            '{"profilefield":"username","username_operator":3,"username_value":""}',
+            $conditions[$condition4->get_record()->get('id')]['configdata']
+        );
+        $this->assertSame('Username is equal to user1username', $conditions[$condition2->get_record()->get('id')]['description']);
+        $this->assertSame('User standard profile field', $conditions[$condition2->get_record()->get('id')]['name']);
+
+        $this->assertSame(true, $conditions[$condition1->get_record()->get('id')]['broken']);
+        $this->assertSame(false, $conditions[$condition2->get_record()->get('id')]['broken']);
+        $this->assertSame(false, $conditions[$condition3->get('id')]['broken']);
+        $this->assertSame(true, $conditions[$condition4->get_record()->get('id')]['broken']);
     }
 }

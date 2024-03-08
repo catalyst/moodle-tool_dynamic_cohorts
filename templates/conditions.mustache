@@ -51,7 +51,7 @@
         <tbody>
         {{#conditions}}
             <tr>
-                <td>{{{name}}}</td>
+                <td>{{#broken}}{{#pix}} i/invalid, core {{/pix}}{{/broken}} {{{name}}}</td>
                 <td>{{{description}}}</td>
                 {{^hidecontrols}}
                     <td>
