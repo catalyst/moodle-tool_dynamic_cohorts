@@ -33,4 +33,20 @@ $functions = [
         'capabilities'    => 'tool/dynamic_cohorts:manage',
         'ajax'            => true,
     ],
+    'tool_dynamic_cohorts_get_total_matching_users_for_rule' => [
+        'classname'       => 'tool_dynamic_cohorts\external\matching_users',
+        'methodname'      => 'get_total',
+        'description'     => 'Returns a number of matching users for provided rule ',
+        'type'            => 'read',
+        'capabilities'    => 'tool/dynamic_cohorts:manage',
+        'ajax'            => true,
+    ],
+    'tool_dynamic_cohorts_get_conditions' => [
+        'classname'       => 'tool_dynamic_cohorts\external\rule_conditions',
+        'methodname'      => 'get_conditions',
+        'description'     => 'Returns a list of conditions for provided rule ',
+        'type'            => 'read',
+        'capabilities'    => 'tool/dynamic_cohorts:manage',
+        'ajax'            => true,
+    ],
 ];

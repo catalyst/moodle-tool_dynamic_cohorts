@@ -20,11 +20,14 @@ use context;
 use context_system;
 use core_cohort\reportbuilder\local\entities\cohort;
 use core_reportbuilder\local\report\action;
+use core_reportbuilder\local\report\column;
 use core_reportbuilder\system_report;
 use tool_dynamic_cohorts\reportbuilder\local\entities\rule_entity;
 use lang_string;
+use moodle_url;
 use tool_dynamic_cohorts\rule;
-use core_reportbuilder\local\report\column;
+use pix_icon;
+use html_writer;
 
 /**
  * Rules admin table.
@@ -57,6 +60,25 @@ class rules extends system_report {
         $this->add_column_from_entity('rule_entity:name');
         $this->add_column_from_entity('rule_entity:description');
         $this->add_column_from_entity('cohort:name');
+
+        $this->add_column(new column(
+            'matchingusers',
+            new lang_string('matchingusers', 'tool_dynamic_cohorts'),
+            $ruleentity->get_entity_name()
+        ))
+            ->set_type(column::TYPE_TEXT)
+            ->set_is_sortable(false)
+            ->add_fields("{$rulealias}.id")
+            ->add_callback(static function($id): string {
+                global $OUTPUT;
+
+                $url = new moodle_url('/admin/tool/dynamic_cohorts/users.php', ['ruleid' => $id]);
+                return $OUTPUT->render_from_template('tool_dynamic_cohorts/matching_users', [
+                    'ruleid' => $id,
+                    'url' => $url->out(),
+                ]);
+            });
+
         $this->add_column_from_entity('rule_entity:bulkprocessing');
 
         $this->add_column(new column(
@@ -69,7 +91,16 @@ class rules extends system_report {
             ->add_fields("{$rulealias}.id")
             ->add_callback(static function($id, $row): string {
                 $rule = new rule(0, $row);
-                return count($rule->get_condition_records());
+                $conditions = count($rule->get_condition_records());
+
+                if ($conditions > 0) {
+                    $conditions = html_writer::tag('span', $conditions, [
+                        'class' => 'tool-dynamic-cohorts-condition-view',
+                        'data-ruleid' => $rule->get('id'),
+                    ]);
+                }
+
+                return $conditions;
             });
 
         $this->add_column_from_entity('rule_entity:status');
@@ -107,8 +138,8 @@ class rules extends system_report {
      */
     protected function add_actions(): void {
         $this->add_action((new action(
-            new \moodle_url('/admin/tool/dynamic_cohorts/toggle.php', ['ruleid' => ':id', 'sesskey' => sesskey()]),
-            new \pix_icon('t/hide', '', 'core'),
+            new moodle_url('/admin/tool/dynamic_cohorts/toggle.php', ['ruleid' => ':id', 'sesskey' => sesskey()]),
+            new pix_icon('t/hide', '', 'core'),
             [],
             false,
             new lang_string('enable')
@@ -117,8 +148,8 @@ class rules extends system_report {
         }));
 
         $this->add_action((new action(
-            new \moodle_url('/admin/tool/dynamic_cohorts/toggle.php', ['ruleid' => ':id', 'sesskey' => sesskey()]),
-            new \pix_icon('t/show', '', 'core'),
+            new moodle_url('/admin/tool/dynamic_cohorts/toggle.php', ['ruleid' => ':id', 'sesskey' => sesskey()]),
+            new pix_icon('t/show', '', 'core'),
             [],
             false,
             new lang_string('disable')
@@ -127,16 +158,16 @@ class rules extends system_report {
         }));
 
         $this->add_action((new action(
-            new \moodle_url('/admin/tool/dynamic_cohorts/edit.php', ['ruleid' => ':id']),
-            new \pix_icon('t/edit', '', 'core'),
+            new moodle_url('/admin/tool/dynamic_cohorts/edit.php', ['ruleid' => ':id']),
+            new pix_icon('t/edit', '', 'core'),
             [],
             false,
             new lang_string('edit')
         )));
 
         $this->add_action((new action(
-            new \moodle_url('/admin/tool/dynamic_cohorts/delete.php', ['ruleid' => ':id', 'sesskey' => sesskey()]),
-            new \pix_icon('t/delete', '', 'core'),
+            new moodle_url('/admin/tool/dynamic_cohorts/delete.php', ['ruleid' => ':id', 'sesskey' => sesskey()]),
+            new pix_icon('t/delete', '', 'core'),
             [],
             false,
             new lang_string('delete')

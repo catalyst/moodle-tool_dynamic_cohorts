@@ -577,6 +577,8 @@ class rule_manager_test extends \advanced_testcase {
         $this->assertArrayHasKey($user1->id, $users);
         $this->assertArrayNotHasKey($user2->id, $users);
         $this->assertArrayNotHasKey($user3->id, $users);
+
+        $this->assertEquals(1, rule_manager::get_matching_users_count($rule));
     }
 
     /**

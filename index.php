@@ -22,6 +22,9 @@
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+use core_reportbuilder\system_report_factory;
+use tool_dynamic_cohorts\reportbuilder\local\systemreports\rules;
+
 require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir . '/adminlib.php');
 
@@ -30,14 +33,12 @@ admin_externalpage_setup('tool_dynamic_cohorts_rules');
 $manageurl = new moodle_url('/admin/tool/dynamic_cohorts/index.php');
 $editurl = new moodle_url('/admin/tool/dynamic_cohorts/edit.php');
 
-$report = \core_reportbuilder\system_report_factory::create(
-    \tool_dynamic_cohorts\reportbuilder\local\systemreports\rules::class,
-    context_system::instance(),
-    'tool_dynamic_cohorts'
-);
+$report = system_report_factory::create(rules::class, context_system::instance(), 'tool_dynamic_cohorts');
+
+$PAGE->requires->js_call_amd('tool_dynamic_cohorts/manage_rules', 'init');
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('managerules', 'tool_dynamic_cohorts'));
-echo $OUTPUT->render_from_template('tool_dynamic_cohorts/addbutton', ['url' => $editurl]);
+echo $OUTPUT->single_button($editurl, get_string('addrule', 'tool_dynamic_cohorts'), 'post', ['primary' => true]);
 echo $report->output();
 echo $OUTPUT->footer();

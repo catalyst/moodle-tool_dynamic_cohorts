@@ -212,66 +212,79 @@ class rule_manager {
             return [];
         }
 
-        $where = ' u.deleted = 0 ';
-        $join = '';
-        $params = [];
-
         $sql = "SELECT DISTINCT u.id FROM {user} u";
 
-        foreach ($conditions as $condition) {
-            try {
-                $instance = condition_base::get_instance(0, $condition->to_record());
+        try {
+            $sqldata = condition_manager::build_sql_data($conditions, $userid);
+        } catch (\Exception $exception ) {
+            self::trigger_matching_failed_event($rule, $exception->getMessage());
+            $rule->mark_broken();
 
-                if (!$instance || $instance->is_broken()) {
-                    return [];
-                }
-
-                $sqldata = $instance->get_sql();
-
-                if (!empty($sqldata->get_join())) {
-                    $join .= ' ' . $sqldata->get_join();
-                }
-
-                if (!empty($sqldata->get_where())) {
-                    $where .= ' AND (' . $sqldata->get_where() . ')';
-                }
-
-                if (!empty($sqldata->get_params())) {
-                    $params += $sqldata->get_params();
-                }
-            } catch (\Exception $exception ) {
-                matching_failed::create([
-                    'other' => [
-                        'ruleid' => $rule->get('id'),
-                        'error' => $exception->getMessage(),
-                    ],
-                ])->trigger();
-
-                $rule->mark_broken();
-                return [];
-            }
-        }
-
-        if ($userid) {
-            $userparam = condition_sql::generate_param_alias();
-            $where .= " AND u.id = :{$userparam} ";
-            $params += [$userparam => $userid];
+            return [];
         }
 
         try {
-            return $DB->get_records_sql($sql . $join . ' WHERE ' . $where, $params);
+            return $DB->get_records_sql($sql . $sqldata->get_join() . ' WHERE ' . $sqldata->get_where(), $sqldata->get_params());
         } catch (\Exception $exception) {
-            matching_failed::create([
-                'other' => [
-                    'ruleid' => $rule->get('id'),
-                    'error' => $exception->getMessage(),
-                ],
-            ])->trigger();
-
+            self::trigger_matching_failed_event($rule, $exception->getMessage());
             $rule->mark_broken();
 
-            return  [];
+            return [];
         }
+    }
+
+    /**
+     * Get count of matching users for a given rule.
+     *
+     * @param \tool_dynamic_cohorts\rule $rule
+     * @param int|null $userid
+     *
+     * @return int
+     */
+    public static function get_matching_users_count(rule $rule, ?int $userid = null): int {
+        global $DB;
+
+        $conditions = $rule->get_condition_records();
+
+        if (empty($conditions)) {
+            return 0;
+        }
+
+        $sql = "SELECT COUNT(DISTINCT u.id) cnt FROM {user} u";
+
+        try {
+            $sqldata = condition_manager::build_sql_data($conditions, $userid);
+        } catch (\Exception $exception ) {
+            self::trigger_matching_failed_event($rule, $exception->getMessage());
+            $rule->mark_broken();
+
+            return 0;
+        }
+
+        try {
+            $result = $DB->get_record_sql($sql . $sqldata->get_join() . ' WHERE ' . $sqldata->get_where(), $sqldata->get_params());
+            return $result->cnt;
+        } catch (\Exception $exception) {
+            self::trigger_matching_failed_event($rule, $exception->getMessage());
+            $rule->mark_broken();
+
+            return 0;
+        }
+    }
+
+    /**
+     * A helper function to trigger matching failed event.
+     *
+     * @param \tool_dynamic_cohorts\rule $rule Rule to trigger on.
+     * @param string $error Error message.
+     */
+    private static function trigger_matching_failed_event(rule $rule, string $error): void {
+        matching_failed::create([
+            'other' => [
+                'ruleid' => $rule->get('id'),
+                'error' => $error,
+            ],
+        ])->trigger();
     }
 
     /**

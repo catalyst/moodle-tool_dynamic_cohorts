@@ -206,4 +206,53 @@ class condition_manager {
 
         return $conditionswithevent;
     }
+
+    /**
+     * A helper function to build sql data for given list of conditions.
+     *
+     * @param \tool_dynamic_cohorts\condition[] $conditions A list of conditions.
+     * @param int|null $userid
+     *
+     * @return \tool_dynamic_cohorts\condition_sql
+     */
+    public static function build_sql_data(array $conditions, ?int $userid = null): condition_sql {
+        $where = ' u.deleted = 0 ';
+        $join = '';
+        $params = [];
+
+        foreach ($conditions as $condition) {
+
+            if (!$condition instanceof condition) {
+                continue;
+            }
+
+            $instance = condition_base::get_instance(0, $condition->to_record());
+
+            if (!$instance || $instance->is_broken()) {
+                return new condition_sql($join, '1=0', $params);
+            }
+
+            $sqldata = $instance->get_sql();
+
+            if (!empty($sqldata->get_join())) {
+                $join .= ' ' . $sqldata->get_join();
+            }
+
+            if (!empty($sqldata->get_where())) {
+                $where .= ' AND (' . $sqldata->get_where() . ')';
+            }
+
+            if (!empty($sqldata->get_params())) {
+                $params += $sqldata->get_params();
+            }
+        }
+
+        if ($userid) {
+            $userparam = condition_sql::generate_param_alias();
+            $where .= " AND u.id = :{$userparam} ";
+            $params += [$userparam => $userid];
+        }
+
+        return new condition_sql($join, $where, $params);
+    }
 }
