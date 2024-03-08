@@ -42,6 +42,7 @@ $string['conditions'] = 'Conditions';
 $string['conditionsformtitle'] = 'Rule conditions';
 $string['conditionchnagesnotapplied'] = 'Condition changes are not applied until you save the rule form';
 $string['conditionformtitle'] = 'Rule condition';
+$string['condition:auth_method'] = 'Authentication method';
 $string['condition:cohort_membership'] = 'Cohort membership';
 $string['condition:cohort_membership_description'] = 'A user {$a->operator} {$a->cohorts}';
 $string['condition:cohort_membership_broken_description'] = 'Condition is broken. Using the same cohort that the given rule is configured to manage to.';
