@@ -68,6 +68,7 @@ $string['event:ruleupdated'] = 'Rule updated';
 $string['event:ruledeleted'] = 'Rule deleted';
 $string['includingmissingdatadesc'] = '(including users with missing data)';
 $string['includeusersmissingdata'] = 'include users with missing data';
+$string['include_missing_data'] = 'Include users with missing data.';
 $string['include_missing_data_help'] = 'Some users may not have a custom field data set yet. This option includes those user in the final result.';
 $string['invalidfieldvalue'] = 'Invalid field value';
 $string['ismemberof'] = 'is member of';

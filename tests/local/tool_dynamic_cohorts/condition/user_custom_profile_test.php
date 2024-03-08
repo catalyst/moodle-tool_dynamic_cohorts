@@ -150,14 +150,14 @@ class user_custom_profile_test extends \advanced_testcase {
      */
     public function config_description_data_provider(): array {
         return [
-            [user_profile::TEXT_CONTAINS, 'Test field1 contains 123', false],
+            [user_profile::TEXT_CONTAINS, 'Test field1 contains 123', true],
             [user_profile::TEXT_DOES_NOT_CONTAIN, 'Test field1 doesn\'t contain 123', true],
-            [user_profile::TEXT_IS_EQUAL_TO, 'Test field1 is equal to 123', false],
+            [user_profile::TEXT_IS_EQUAL_TO, 'Test field1 is equal to 123', true],
             [user_profile::TEXT_IS_NOT_EQUAL_TO, 'Test field1 isn\'t equal to 123', true],
-            [user_profile::TEXT_STARTS_WITH, 'Test field1 starts with 123', false],
-            [user_profile::TEXT_ENDS_WITH, 'Test field1 ends with 123', false],
+            [user_profile::TEXT_STARTS_WITH, 'Test field1 starts with 123', true],
+            [user_profile::TEXT_ENDS_WITH, 'Test field1 ends with 123', true],
             [user_profile::TEXT_IS_EMPTY, 'Test field1 is empty', true],
-            [user_profile::TEXT_IS_NOT_EMPTY, 'Test field1 is not empty', false],
+            [user_profile::TEXT_IS_NOT_EMPTY, 'Test field1 is not empty', true],
         ];
     }
 

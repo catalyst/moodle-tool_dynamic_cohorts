@@ -36,7 +36,7 @@ $manageurl = new moodle_url('/admin/tool/dynamic_cohorts/index.php');
 $editurl = new moodle_url('/admin/tool/dynamic_cohorts/edit.php');
 
 foreach (rule::get_records() as $rule) {
-    if ($rule->is_broken(true)) {
+    if ($rule->is_broken()) {
         notification::warning(get_string('brokenruleswarning', 'tool_dynamic_cohorts'));
         break;
     }
