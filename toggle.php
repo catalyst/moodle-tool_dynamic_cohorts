@@ -64,7 +64,7 @@ if (!$rule->is_broken()) {
     }
 } else {
     $newvalue = 0;
-    $message = get_string('ruleisbroken', 'tool_dynamic_cohorts');
+    $message = get_string('cannotenablebrokenrule', 'tool_dynamic_cohorts');
     $messagetype = notification::NOTIFY_ERROR;
 
     $rule->set('enabled', $newvalue);

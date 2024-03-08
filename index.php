@@ -22,7 +22,9 @@
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+use core\notification;
 use core_reportbuilder\system_report_factory;
+use tool_dynamic_cohorts\rule;
 use tool_dynamic_cohorts\reportbuilder\local\systemreports\rules;
 
 require_once(__DIR__ . '/../../../config.php');
@@ -32,6 +34,13 @@ admin_externalpage_setup('tool_dynamic_cohorts_rules');
 
 $manageurl = new moodle_url('/admin/tool/dynamic_cohorts/index.php');
 $editurl = new moodle_url('/admin/tool/dynamic_cohorts/edit.php');
+
+foreach (rule::get_records() as $rule) {
+    if ($rule->is_broken(true)) {
+        notification::warning(get_string('brokenruleswarning', 'tool_dynamic_cohorts'));
+        break;
+    }
+}
 
 $report = system_report_factory::create(rules::class, context_system::instance(), 'tool_dynamic_cohorts');
 
