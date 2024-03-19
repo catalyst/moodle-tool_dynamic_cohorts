@@ -26,6 +26,61 @@ namespace tool_dynamic_cohorts;
 abstract class condition_base {
 
     /**
+     * Value for text field types.
+     */
+    public const FIELD_DATA_TYPE_TEXT = 'text';
+
+    /**
+     * Value for menu field types.
+     */
+    public const FIELD_DATA_TYPE_MENU = 'menu';
+
+    /**
+     * Value for checkbox field types.
+     */
+    public const FIELD_DATA_TYPE_CHECKBOX = 'checkbox';
+
+    /**
+     * Value for operator text contains.
+     */
+    public const TEXT_CONTAINS = 1;
+
+    /**
+     * Value for operator text doesn't contain.
+     */
+    public const TEXT_DOES_NOT_CONTAIN = 2;
+
+    /**
+     * Value for operator text is equal to.
+     */
+    public const TEXT_IS_EQUAL_TO = 3;
+
+    /**
+     * Value for operator text starts with.
+     */
+    public const TEXT_STARTS_WITH = 4;
+
+    /**
+     * Value for operator text ends with.
+     */
+    public const TEXT_ENDS_WITH = 5;
+
+    /**
+     * Value for operator text is empty.
+     */
+    public const TEXT_IS_EMPTY = 6;
+
+    /**
+     * Value for operator text is not empty.
+     */
+    public const TEXT_IS_NOT_EMPTY = 7;
+
+    /**
+     * Value for operator text is not equal to.
+     */
+    public const TEXT_IS_NOT_EQUAL_TO = 8;
+
+    /**
      * Condition persistent object.
      *
      * @var condition $condition

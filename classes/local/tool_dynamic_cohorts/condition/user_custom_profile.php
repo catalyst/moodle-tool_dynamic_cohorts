@@ -34,16 +34,6 @@ class user_custom_profile extends user_profile {
     public const INCLUDE_MISSING_DATA_FIELD_NAME = 'include_missing_data';
 
     /**
-     * A list of supported custom profile fields.
-     */
-    protected const SUPPORTED_CUSTOM_FIELDS = ['text', 'menu', 'checkbox'];
-
-    /**
-     * Value for checkbox field types.
-     */
-    public const FIELD_DATA_TYPE_CHECKBOX = 'checkbox';
-
-    /**
      * Custom field prefix.
      */
     protected const FIELD_PREFIX = 'profile_field_';
@@ -55,6 +45,15 @@ class user_custom_profile extends user_profile {
      */
     public function get_name(): string {
         return get_string('condition:user_custom_profile', 'tool_dynamic_cohorts');
+    }
+
+    /**
+     * Get a list of supported custom fields.
+     *
+     * @return array
+     */
+    protected function get_supported_custom_fields(): array {
+        return [self::FIELD_DATA_TYPE_TEXT, self::FIELD_DATA_TYPE_MENU, self::FIELD_DATA_TYPE_CHECKBOX];
     }
 
     /**
@@ -70,7 +69,7 @@ class user_custom_profile extends user_profile {
         $fields = [];
 
         foreach (profile_get_user_fields_with_data(0) as $customfield) {
-            if (!in_array($customfield->field->datatype, self::SUPPORTED_CUSTOM_FIELDS)) {
+            if (!in_array($customfield->field->datatype, $this->get_supported_custom_fields())) {
                 continue;
             }
 
@@ -142,23 +141,6 @@ class user_custom_profile extends user_profile {
     }
 
     /**
-     * Adds a check box field to the form.
-     *
-     * @param \MoodleQuickForm $mform Form to add the field to.
-     * @param array $group A group to add the field to.
-     * @param \stdClass $field Field info.
-     * @param string $shortname A field shortname.
-     */
-    protected function add_checkbox_field(\MoodleQuickForm $mform, array &$group, \stdClass $field, string $shortname): void {
-        $options = (array) $field->param1;
-
-        $elements = [];
-        $elements[] = $mform->createElement('hidden', $shortname . '_operator', self::TEXT_IS_EQUAL_TO);
-        $elements[] = $mform->createElement('select', $shortname . '_value', $field->name, $options);
-        $group[] = $mform->createElement('group', $shortname, '', $elements, '', false);
-        $mform->hideIf($shortname, static::get_form_field(), 'neq', $shortname);
-    }
-    /**
      * Gets required config data from submitted condition form data.
      *
      * @param \stdClass $formdata
@@ -229,26 +211,6 @@ class user_custom_profile extends user_profile {
         }
 
         return $result;
-    }
-
-    /**
-     * Returns a value of the configured field.
-     *
-     * @return string|null
-     */
-    protected function get_field_value(): ?string {
-        $fieldvalue = parent::get_field_value();
-
-        // A special case for checkbox field.
-        $fieldname = $this->get_field_name();
-        if (!empty($fieldname) && !empty($this->get_fields_info()[$fieldname])) {
-            $datatype = $this->get_fields_info()[$fieldname]->datatype;
-            if ($datatype == self::FIELD_DATA_TYPE_CHECKBOX) {
-                $fieldvalue = empty($fieldvalue) ? get_string('no') : get_string('yes');
-            }
-        }
-
-        return $fieldvalue;
     }
 
     /**
