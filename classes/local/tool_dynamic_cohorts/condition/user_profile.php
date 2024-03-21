@@ -31,55 +31,7 @@ use coding_exception;
  */
 class user_profile extends condition_base {
 
-    /**
-     * Value for text field types.
-     */
-    public const FIELD_DATA_TYPE_TEXT = 'text';
-
-    /**
-     * Value for menu field types.
-     */
-    public const FIELD_DATA_TYPE_MENU = 'menu';
-
-    /**
-     * Value for operator text contains.
-     */
-    public const TEXT_CONTAINS = 1;
-
-    /**
-     * Value for operator text doesn't contain.
-     */
-    public const TEXT_DOES_NOT_CONTAIN = 2;
-
-    /**
-     * Value for operator text is equal to.
-     */
-    public const TEXT_IS_EQUAL_TO = 3;
-
-    /**
-     * Value for operator text starts with.
-     */
-    public const TEXT_STARTS_WITH = 4;
-
-    /**
-     * Value for operator text ends with.
-     */
-    public const TEXT_ENDS_WITH = 5;
-
-    /**
-     * Value for operator text is empty.
-     */
-    public const TEXT_IS_EMPTY = 6;
-
-    /**
-     * Value for operator text is not empty.
-     */
-    public const TEXT_IS_NOT_EMPTY = 7;
-
-    /**
-     * Value for operator text is not equal to.
-     */
-    public const TEXT_IS_NOT_EQUAL_TO = 8;
+    use fields_trait;
 
     /**
      * A list of supported default fields.
@@ -190,36 +142,6 @@ class user_profile extends condition_base {
     }
 
     /**
-     * Gets an list of comparison operators for text fields.
-     *
-     * @return array A list of operators.
-     */
-    protected function get_text_operators() : array {
-        return [
-            self::TEXT_CONTAINS => get_string('contains', 'filters'),
-            self::TEXT_DOES_NOT_CONTAIN => get_string('doesnotcontain', 'filters'),
-            self::TEXT_IS_EQUAL_TO => get_string('isequalto', 'filters'),
-            self::TEXT_IS_NOT_EQUAL_TO => get_string('isnotequalto', 'filters'),
-            self::TEXT_STARTS_WITH => get_string('startswith', 'filters'),
-            self::TEXT_ENDS_WITH => get_string('endswith', 'filters'),
-            self::TEXT_IS_EMPTY => get_string('isempty', 'filters'),
-            self::TEXT_IS_NOT_EMPTY => get_string('isnotempty', 'tool_dynamic_cohorts'),
-        ];
-    }
-
-    /**
-     * Gets an list of comparison operators for menu fields.
-     *
-     * @return array A list of operators.
-     */
-    protected function get_menu_operators() : array {
-        return [
-            self::TEXT_IS_EQUAL_TO => get_string('isequalto', 'filters'),
-            self::TEXT_IS_NOT_EQUAL_TO => get_string('isnotequalto', 'filters'),
-        ];
-    }
-
-    /**
      * Returns a list of all fields with extra data (shortname, name, datatype, param1 and type).
      *
      * @return \stdClass[]
@@ -253,106 +175,12 @@ class user_profile extends condition_base {
     }
 
     /**
-     * Adds a text field to the form.
-     *
-     * @param \MoodleQuickForm $mform Form to add the field to.
-     * @param array $group A group to add the field to.
-     * @param \stdClass $field Field info.
-     * @param string $shortname A field shortname.
-     */
-    protected function add_text_field(\MoodleQuickForm $mform, array &$group, \stdClass $field, string $shortname): void {
-        $elements = [];
-        $elements[] = $mform->createElement('select', $shortname . '_operator', null, $this->get_text_operators());
-        $elements[] = $mform->createElement('text', $shortname . '_value', null);
-
-        $mform->setType($shortname . '_value', $field->paramtype ?? PARAM_TEXT);
-        $mform->hideIf($shortname . '_value', $shortname . '_operator', 'in', self::TEXT_IS_EMPTY . '|' . self::TEXT_IS_NOT_EMPTY);
-
-        $group[] = $mform->createElement('group', $shortname, '', $elements, '', false);
-        $mform->hideIf($shortname, static::get_form_field(), 'neq', $shortname);
-    }
-
-    /**
-     * Adds a menu field to the form.
-     *
-     * @param \MoodleQuickForm $mform Form to add the field to.
-     * @param array $group A group to add the field to.
-     * @param \stdClass $field Field info.
-     * @param string $shortname A field shortname.
-     */
-    protected function add_menu_field(\MoodleQuickForm $mform, array &$group, \stdClass $field, string $shortname): void {
-        $options = (array) $field->param1;
-        $elements = [];
-        $elements[] = $mform->createElement('select', $shortname . '_operator', null, $this->get_menu_operators());
-
-        $elements[] = $mform->createElement('select', $shortname . '_value', $field->name, $options);
-        $mform->hideIf($shortname . '_value', $shortname . '_operator', 'in', self::TEXT_IS_EMPTY . '|' . self::TEXT_IS_NOT_EMPTY);
-
-        $group[] = $mform->createElement('group', $shortname, '', $elements, '', false);
-        $mform->hideIf($shortname, static::get_form_field(), 'neq', $shortname);
-    }
-
-    /**
-     * Returns a field name for the configured field.
-     *
-     * @return string
-     */
-    protected function get_field_name(): string {
-        return $this->get_config_data()[static::get_form_field()];
-    }
-
-    /**
-     * Returns a value of the configured field.
-     *
-     * @return string|null
-     */
-    protected function get_field_value(): ?string {
-        $fieldvalue = null;
-        $field = $this->get_field_name();
-        $configdata = $this->get_config_data();
-
-        if (!empty($field) && isset($configdata[$field . '_value'])) {
-            $fieldvalue = $configdata[$field . '_value'];
-        }
-
-        return $fieldvalue;
-    }
-
-    /**
      * Return the field name as a text.
      *
      * @return string
      */
     protected function get_field_text(): string {
         return $this->get_fields_info()[$this->get_field_name()]->name ?? '-';
-    }
-
-
-    /**
-     * Returns a value for the configured operator.
-     *
-     * @return int
-     */
-    protected function get_operator_value(): int {
-        return $this->get_config_data()[$this->get_field_name() . '_operator'] ?? self::TEXT_IS_EQUAL_TO;
-    }
-
-    /**
-     *  Returns a text for the configured operator based on a field data type.
-     *
-     * @param string $fielddatatype Field data type.
-     * @return string
-     */
-    protected function get_operator_text(string $fielddatatype): string {
-        if ($fielddatatype == self::FIELD_DATA_TYPE_TEXT) {
-            return $this->get_text_operators()[$this->get_operator_value()];
-        }
-
-        if ($fielddatatype == self::FIELD_DATA_TYPE_MENU) {
-            return $this->get_menu_operators()[$this->get_operator_value()];
-        }
-
-        return $this->get_text_operators()[$this->get_operator_value()];
     }
 
     /**
@@ -394,112 +222,14 @@ class user_profile extends condition_base {
 
         switch ($datatype) {
             case self::FIELD_DATA_TYPE_TEXT:
-                $result = $this->get_text_sql_data('u', $this->get_field_name());
+                $result = $this->get_text_sql('u', $this->get_field_name());
                 break;
             case self::FIELD_DATA_TYPE_MENU:
-                $result = $this->get_menu_sql_data('u', $this->get_field_name());
+                $result = $this->get_menu_sql('u', $this->get_field_name());
                 break;
         }
 
         return $result;
-    }
-
-    /**
-     * Get SQl data for text type fields.
-     *
-     * @param string $tablealias Alias for a table.
-     * @param string $fieldname Field name.
-     * @return condition_sql
-     */
-    protected function get_text_sql_data(string $tablealias, string $fieldname): condition_sql {
-        global $DB;
-
-        $fieldvalue = $this->get_field_value();
-        $operatorvalue = $this->get_operator_value();
-
-        if ($this->is_broken()) {
-            return new condition_sql('', '', []);
-        }
-
-        $param = condition_sql::generate_param_alias();
-
-        switch ($operatorvalue) {
-            case self::TEXT_CONTAINS:
-                $where = $DB->sql_like("$tablealias.$fieldname", ":$param", false, false);
-                $value = $DB->sql_like_escape($fieldvalue);
-                $params[$param] = "%$value%";
-                break;
-            case self::TEXT_DOES_NOT_CONTAIN:
-                $where = $DB->sql_like("$tablealias.$fieldname", ":$param", false, false, true);
-                $fieldvalue = $DB->sql_like_escape($fieldvalue);
-                $params[$param] = "%$fieldvalue%";
-                break;
-            case self::TEXT_IS_EQUAL_TO:
-                $where = $DB->sql_equal($DB->sql_compare_text("{$tablealias}.{$fieldname}"), ":$param", false, false);
-                $params[$param] = $fieldvalue;
-                break;
-            case self::TEXT_IS_NOT_EQUAL_TO:
-                $where = $DB->sql_equal($DB->sql_compare_text("{$tablealias}.{$fieldname}"), ":$param", false, false, true);
-                $params[$param] = $fieldvalue;
-                break;
-            case self::TEXT_STARTS_WITH:
-                $where = $DB->sql_like("$tablealias.$fieldname", ":$param", false, false);
-                $fieldvalue = $DB->sql_like_escape($fieldvalue);
-                $params[$param] = "$fieldvalue%";
-                break;
-            case self::TEXT_ENDS_WITH:
-                $where = $DB->sql_like("$tablealias.$fieldname", ":$param", false, false);
-                $fieldvalue = $DB->sql_like_escape($fieldvalue);
-                $params[$param] = "%$fieldvalue";
-                break;
-            case self::TEXT_IS_EMPTY:
-                $where = $DB->sql_compare_text("$tablealias.$fieldname") . " = " . $DB->sql_compare_text(":$param");
-                $params[$param] = '';
-                break;
-            case self::TEXT_IS_NOT_EMPTY:
-                $where = $DB->sql_compare_text("$tablealias.$fieldname") . " != " . $DB->sql_compare_text(":$param");
-                $params[$param] = '';
-                break;
-            default:
-                return new condition_sql('', '', []);
-        }
-
-        return new condition_sql('', $where, $params);
-    }
-
-    /**
-     * Get SQL data for menu type fields.
-     *
-     * @param string $tablealias Alias for a table.
-     * @param string $fieldname Field name.
-     * @return condition_sql
-     */
-    protected function get_menu_sql_data(string $tablealias, string $fieldname): condition_sql {
-        global $DB;
-
-        $fieldvalue = $this->get_field_value();
-        $operatorvalue = $this->get_operator_value();
-
-        if ($this->is_broken()) {
-            return new condition_sql('', '', []);
-        }
-
-        $param = condition_sql::generate_param_alias();
-
-        switch ($operatorvalue) {
-            case self::TEXT_IS_EQUAL_TO:
-                $where = $DB->sql_equal($DB->sql_compare_text("{$tablealias}.{$fieldname}"), ":$param", false, false);
-                $params[$param] = $fieldvalue;
-                break;
-            case self::TEXT_IS_NOT_EQUAL_TO:
-                $where = $DB->sql_equal($DB->sql_compare_text("{$tablealias}.{$fieldname}"), ":$param", false, false, true);
-                $params[$param] = $fieldvalue;
-                break;
-            default:
-                return new condition_sql('', '', []);
-        }
-
-        return new condition_sql('', $where, $params);
     }
 
     /**
