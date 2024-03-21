@@ -491,7 +491,6 @@ class cohort_field extends condition_base {
      */
     public function get_events(): array {
         return [
-            '\core\event\cohort_updated',
             '\core\event\cohort_member_added',
             '\core\event\cohort_member_removed',
         ];

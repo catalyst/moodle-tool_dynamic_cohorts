@@ -17,7 +17,6 @@
 namespace tool_dynamic_cohorts;
 
 use core\event\base;
-use tool_dynamic_cohorts\rule_manager;
 
 /**
  * Event observer class.
@@ -50,7 +49,7 @@ class observer {
     protected static function get_userid_from_event(base $event): int {
         $data = $event->get_data();
 
-        if (array_key_exists('relateduserid', $data)) {
+        if (array_key_exists('relateduserid', $data) && !empty($data['relateduserid'])) {
             $userid = $data['relateduserid'];
         } else {
             $userid = $data['userid'];
