@@ -54,10 +54,12 @@ class matching_users extends system_report {
 
         $sql = condition_manager::build_sql_data($conditions);
 
+        $this->add_base_fields('DISTINCT u.id');
         $this->add_join($sql->get_join());
         $this->add_base_condition_sql($sql->get_where(), $sql->get_params());
 
         $this->add_column_from_entity('user:fullnamewithlink');
+        $this->add_column_from_entity('user:username');
         $this->add_column_from_entity('user:email');
         $this->add_column_from_entity('user:idnumber');
 
