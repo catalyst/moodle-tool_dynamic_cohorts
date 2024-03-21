@@ -91,14 +91,14 @@ class cohort_field_test extends \advanced_testcase {
      */
     public function config_description_data_provider(): array {
         return [
-            [cohort_field::TEXT_CONTAINS, 'A user is not member of cohorts with field \'theme\' contains 123'],
-            [cohort_field::TEXT_DOES_NOT_CONTAIN, 'A user is not member of cohorts with field \'theme\' doesn\'t contain 123'],
-            [cohort_field::TEXT_IS_EQUAL_TO, 'A user is not member of cohorts with field \'theme\' is equal to 123'],
-            [cohort_field::TEXT_IS_NOT_EQUAL_TO, 'A user is not member of cohorts with field \'theme\' isn\'t equal to 123'],
-            [cohort_field::TEXT_STARTS_WITH, 'A user is not member of cohorts with field \'theme\' starts with 123'],
-            [cohort_field::TEXT_ENDS_WITH, 'A user is not member of cohorts with field \'theme\' ends with 123'],
-            [cohort_field::TEXT_IS_EMPTY, 'A user is not member of cohorts with field \'theme\' is empty '],
-            [cohort_field::TEXT_IS_NOT_EMPTY, 'A user is not member of cohorts with field \'theme\' is not empty '],
+            [condition_base::TEXT_CONTAINS, 'A user is not member of cohorts with field \'Theme\' contains 123'],
+            [condition_base::TEXT_DOES_NOT_CONTAIN, 'A user is not member of cohorts with field \'Theme\' doesn\'t contain 123'],
+            [condition_base::TEXT_IS_EQUAL_TO, 'A user is not member of cohorts with field \'Theme\' is equal to 123'],
+            [condition_base::TEXT_IS_NOT_EQUAL_TO, 'A user is not member of cohorts with field \'Theme\' isn\'t equal to 123'],
+            [condition_base::TEXT_STARTS_WITH, 'A user is not member of cohorts with field \'Theme\' starts with 123'],
+            [condition_base::TEXT_ENDS_WITH, 'A user is not member of cohorts with field \'Theme\' ends with 123'],
+            [condition_base::TEXT_IS_EMPTY, 'A user is not member of cohorts with field \'Theme\' is empty '],
+            [condition_base::TEXT_IS_NOT_EMPTY, 'A user is not member of cohorts with field \'Theme\' is not empty '],
         ];
     }
 
@@ -132,12 +132,12 @@ class cohort_field_test extends \advanced_testcase {
         $condition = $this->get_condition([
             'cohort_field_operator' => cohort_field::OPERATOR_IS_MEMBER_OF,
             'cohort_field_field' => 'contextid',
-            'contextid_operator' => cohort_field::TEXT_IS_EQUAL_TO,
+            'contextid_operator' => condition_base::TEXT_IS_EQUAL_TO,
             'contextid_value' => $catcontext->id,
         ]);
 
         $this->assertSame(
-            'A user is member of cohorts with field \'contextid\' is equal to ' . $coursecategory->name,
+            'A user is member of cohorts with field \'Context\' is equal to ' . $coursecategory->name,
             $condition->get_config_description()
         );
     }
@@ -173,7 +173,7 @@ class cohort_field_test extends \advanced_testcase {
         $condition = $this->get_condition([
             'cohort_field_operator' => cohort_field::OPERATOR_IS_MEMBER_OF,
             'cohort_field_field' => 'contextid',
-            'contextid_operator' => cohort_field::TEXT_IS_EQUAL_TO,
+            'contextid_operator' => condition_base::TEXT_IS_EQUAL_TO,
             'contextid_value' => 7777,
         ]);
         $this->assertTrue($condition->is_broken());
@@ -181,7 +181,7 @@ class cohort_field_test extends \advanced_testcase {
         $condition = $this->get_condition([
             'cohort_field_operator' => cohort_field::OPERATOR_IS_MEMBER_OF,
             'cohort_field_field' => 'name',
-            'name_operator' => cohort_field::TEXT_IS_EMPTY,
+            'name_operator' => condition_base::TEXT_IS_EMPTY,
             'name_value' => '',
         ]);
         $this->assertFalse($condition->is_broken());
@@ -189,7 +189,7 @@ class cohort_field_test extends \advanced_testcase {
         $condition = $this->get_condition([
             'cohort_field_operator' => cohort_field::OPERATOR_IS_MEMBER_OF,
             'cohort_field_field' => 'name',
-            'name_operator' => cohort_field::TEXT_IS_NOT_EMPTY,
+            'name_operator' => condition_base::TEXT_IS_NOT_EMPTY,
             'name_value' => '',
         ]);
         $this->assertFalse($condition->is_broken());
@@ -197,7 +197,7 @@ class cohort_field_test extends \advanced_testcase {
         $condition = $this->get_condition([
             'cohort_field_operator' => cohort_field::OPERATOR_IS_MEMBER_OF,
             'cohort_field_field' => 'name',
-            'name_operator' => cohort_field::TEXT_IS_EQUAL_TO,
+            'name_operator' => condition_base::TEXT_IS_EQUAL_TO,
             'name_value' => '',
         ]);
         $this->assertTrue($condition->is_broken());
@@ -205,7 +205,7 @@ class cohort_field_test extends \advanced_testcase {
         $condition = $this->get_condition([
             'cohort_field_operator' => cohort_field::OPERATOR_IS_MEMBER_OF,
             'cohort_field_field' => 'notexists',
-            'notexists_operator' => cohort_field::TEXT_IS_EQUAL_TO,
+            'notexists_operator' => condition_base::TEXT_IS_EQUAL_TO,
             'notexists_value' => '',
         ]);
         $this->assertTrue($condition->is_broken());
@@ -214,7 +214,7 @@ class cohort_field_test extends \advanced_testcase {
     /**
      * Test getting SQL.
      */
-    public function test_get_sql_data() {
+    public function test_get_sql_data_standard_fields() {
         global $DB;
 
         $this->resetAfterTest();
@@ -265,6 +265,130 @@ class cohort_field_test extends \advanced_testcase {
         $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
         // Everyone as cohort is empty.
         $this->assertCount($totalusers, $DB->get_records_sql($sql, $result->get_params()));
+    }
+
+    /**
+     * Create Cohort custom field for testing.
+     *
+     * @return \core_customfield\field_controller
+     */
+    protected function create_cohort_custom_field(): \core_customfield\field_controller {
+        $fieldcategory = self::getDataGenerator()->create_custom_field_category([
+            'component' => 'core_cohort',
+            'area' => 'cohort',
+            'name' => 'Other fields',
+        ]);
+
+        return self::getDataGenerator()->create_custom_field([
+            'shortname' => 'testfield1',
+            'name' => 'Custom field',
+            'type' => 'text',
+            'categoryid' => $fieldcategory->get('id'),
+        ]);
+    }
+
+    /**
+     * Test getting config description when using a custom field.
+     */
+    public function test_config_description_custom_field() {
+        if (!class_exists(\core_cohort\customfield\cohort_handler::class)) {
+            $this->markTestSkipped();
+        }
+
+        $this->resetAfterTest();
+        $this->create_cohort_custom_field();
+
+        $condition = $this->get_condition([
+            'cohort_field_operator' => cohort_field::OPERATOR_IS_MEMBER_OF,
+            'cohort_field_field' => cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1',
+            cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1_operator' => condition_base::TEXT_IS_EQUAL_TO,
+            cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1_value' => 'Test value',
+        ]);
+
+        $this->assertSame(
+            'A user is member of cohorts with field \'Custom field\' is equal to Test value',
+            $condition->get_config_description()
+        );
+    }
+
+    /**
+     * Test getting SQL.
+     */
+    public function test_get_sql_data_custom_fields() {
+        global $DB;
+
+        if (!class_exists(\core_cohort\customfield\cohort_handler::class)) {
+            $this->markTestSkipped();
+        }
+
+        $this->resetAfterTest();
+
+        // We need admin to be able to add custom fields data for cohorts.
+        $this->setAdminUser();
+
+        $this->create_cohort_custom_field();
+
+        $cohort1 = $this->getDataGenerator()->create_cohort(['customfield_testfield1' => 'Test value 1']);
+        $cohort2 = $this->getDataGenerator()->create_cohort();
+
+        $user1 = $this->getDataGenerator()->create_user();
+        $user2 = $this->getDataGenerator()->create_user();
+        $user3 = $this->getDataGenerator()->create_user();
+
+        cohort_add_member($cohort1->id, $user1->id);
+        cohort_add_member($cohort1->id, $user2->id);
+        cohort_add_member($cohort2->id, $user3->id);
+
+        $totalusers = $DB->count_records('user');
+
+        // User 1 and user 2 as they are members of cohort 1.
+        $condition = $this->get_condition([
+            'cohort_field_operator' => cohort_field::OPERATOR_IS_MEMBER_OF,
+            'cohort_field_field' => cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1',
+            cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1_operator' => condition_base::TEXT_IS_EQUAL_TO,
+            cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1_value' => 'Test value 1',
+        ]);
+
+        $result = $condition->get_sql();
+        $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
+        $this->assertCount(2, $DB->get_records_sql($sql, $result->get_params()));
+
+        // Everyone except user 1 and user 2 as they are member of cohort 1.
+        $condition = $this->get_condition([
+            'cohort_field_operator' => cohort_field::OPERATOR_IS_NOT_MEMBER_OF,
+            'cohort_field_field' => cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1',
+            cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1_operator' => condition_base::TEXT_IS_EQUAL_TO,
+            cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1_value' => 'Test value 1',
+        ]);
+
+        $result = $condition->get_sql();
+        $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
+        $this->assertCount($totalusers - 2, $DB->get_records_sql($sql, $result->get_params()));
+
+        // Everyone as cohort is empty.
+        $condition = $this->get_condition([
+            'cohort_field_operator' => cohort_field::OPERATOR_IS_NOT_MEMBER_OF,
+            'cohort_field_field' => cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1',
+            cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1_operator' => condition_base::TEXT_IS_EQUAL_TO,
+            cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1_value' => 'Test value 2',
+        ]);
+
+        $result = $condition->get_sql();
+        $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
+        $this->assertCount($totalusers, $DB->get_records_sql($sql, $result->get_params()));
+
+        // User 1, user 2 and user 3 as they are members of cohort 1 and cohort 2 (this one is with missing custom field data).
+        $condition = $this->get_condition([
+            'cohort_field_operator' => cohort_field::OPERATOR_IS_MEMBER_OF,
+            'cohort_field_field' => cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1',
+            cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1_operator' => condition_base::TEXT_IS_EQUAL_TO,
+            cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1_value' => 'Test value 1',
+            cohort_field::CUSTOM_FIELD_PREFIX . 'testfield1_include_missing_data' => '1',
+        ]);
+
+        $result = $condition->get_sql();
+        $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
+        $this->assertCount(3, $DB->get_records_sql($sql, $result->get_params()));
     }
 
     /**

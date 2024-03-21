@@ -16,6 +16,7 @@
 
 namespace tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition;
 
+use coding_exception;
 use core_course_category;
 use context_system;
 use context_coursecat;
@@ -79,6 +80,15 @@ class cohort_field extends condition_base {
     }
 
     /**
+     * Get a list of supported custom fields.
+     *
+     * @return array
+     */
+    protected function get_supported_custom_fields(): array {
+        return [self::FIELD_DATA_TYPE_TEXT, self::FIELD_DATA_TYPE_SELECT, self::FIELD_DATA_TYPE_CHECKBOX];
+    }
+
+    /**
      * Returns a list of all fields with extra data (shortname, name, datatype, param1 and type).
      *
      * @return \stdClass[]
@@ -115,6 +125,38 @@ class cohort_field extends condition_base {
                     $fields[$field]->datatype = self::FIELD_DATA_TYPE_TEXT;
                     $fields[$field]->paramtype = PARAM_TEXT;
                     break;
+            }
+        }
+
+        // Workout custom fields if they are available.
+        if (class_exists(\core_cohort\customfield\cohort_handler::class)) {
+            $handler = \core_cohort\customfield\cohort_handler::create();
+
+            foreach ($handler->get_fields() as $customfield) {
+
+                if (!in_array($customfield->get('type'), $this->get_supported_custom_fields())) {
+                    continue;
+                }
+
+                $shortname = self::CUSTOM_FIELD_PREFIX . $customfield->get('shortname');
+                $fields[$shortname] = new \stdClass();
+                $fields[$shortname]->name = $customfield->get_formatted_name();
+                $fields[$shortname]->shortname = $shortname;
+                $fields[$shortname]->datatype = $customfield->get('type');
+
+                switch ($fields[$shortname]->datatype) {
+                    case self::FIELD_DATA_TYPE_SELECT:
+                        $fields[$shortname]->param1 = $customfield->get_options();
+                        break;
+                    case self::FIELD_DATA_TYPE_TEXT:
+                        $fields[$shortname]->paramtype = PARAM_TEXT;
+                        break;
+                    case self::FIELD_DATA_TYPE_CHECKBOX:
+                        $fields[$shortname]->param1 = array_combine([0, 1], [get_string('no'), get_string('yes')]);
+                        break;
+                    default:
+                        throw new coding_exception('Invalid field type ' . $fields[$shortname]->datatype);
+                }
             }
         }
 
@@ -161,12 +203,14 @@ class cohort_field extends condition_base {
 
         $group = [];
         $group[] = $mform->createElement('select', $this->get_form_field(), '', $options);
+        $includemissing = [];
 
         foreach ($fields as $shortname => $field) {
             switch ($field->datatype) {
                 case self::FIELD_DATA_TYPE_TEXT:
                     $this->add_text_field($mform, $group, $field, $shortname);
                     break;
+                case self::FIELD_DATA_TYPE_SELECT:
                 case self::FIELD_DATA_TYPE_MENU:
                     $this->add_menu_field($mform, $group, $field, $shortname);
                     break;
@@ -174,11 +218,30 @@ class cohort_field extends condition_base {
                     $this->add_checkbox_field($mform, $group, $field, $shortname);
                     break;
                 default:
-                    throw new \coding_exception('Invalid field type ' . $field->datatype);
+                    throw new coding_exception('Invalid field type ' . $field->datatype);
+            }
+
+            // Create "include missing data" checkbox for each of custom fields.
+            if ($this->is_custom_field($shortname)) {
+                $name = $shortname . '_include_missing_data';
+                $includemissing[$name] = $mform->createElement(
+                    'checkbox',
+                    $name,
+                    '',
+                    get_string('cf_include_missing_data', 'tool_dynamic_cohorts')
+                );
+
+                $mform->hideIf($name, self::get_form_field(), 'neq', $shortname);
             }
         }
 
         $mform->addGroup($group, 'fieldgroup', get_string('cohortswith', 'tool_dynamic_cohorts'), '', false);
+
+        // Add "include missing data" checkbox.
+        foreach ($includemissing as $fieldname => $element) {
+            $mform->addElement($element);
+            $mform->addHelpButton($fieldname, 'cf_include_missing_data', 'tool_dynamic_cohorts');
+        }
     }
 
     /**
@@ -273,8 +336,8 @@ class cohort_field extends condition_base {
             return '';
         }
 
-        $datatype = $this->get_fields_info()[$fieldname]->datatype;
-        $fieldoperator = $this->get_operator_text($datatype);
+        $fieldinfo = $this->get_fields_info()[$fieldname];
+        $fieldoperator = $this->get_operator_text($fieldinfo->datatype);
         $fieldvalue = $this->get_field_value();
 
         if ($fieldname == 'contextid') {
@@ -285,16 +348,51 @@ class cohort_field extends condition_base {
             $fieldvalue = null;
         }
 
-        return get_string('condition:cohort_field_description', 'tool_dynamic_cohorts', (object)[
+        if ($fieldinfo->datatype === self::FIELD_DATA_TYPE_SELECT) {
+            $fieldvalue = $fieldinfo->param1[$fieldvalue];
+        }
+
+        $fieldname = $fieldinfo->name;
+
+        $description = get_string('condition:cohort_field_description', 'tool_dynamic_cohorts', (object)[
             'operator' => $cohortoperator,
             'field' => $fieldname,
             'fieldoperator' => $fieldoperator,
             'fieldvalue' => $fieldvalue,
         ]);
+
+        if ($this->should_include_missing_data()) {
+            $description .= ' ' . get_string('cf_includingmissingdatadesc', 'tool_dynamic_cohorts');
+        }
+
+        return $description;
+    }
+
+    /**
+     * Check if a given field is a custom field.
+     *
+     * @param string $fieldname Field name.
+     * @return bool
+     */
+    protected function is_custom_field(string $fieldname): bool {
+        return strpos($fieldname, self::CUSTOM_FIELD_PREFIX) === 0;
+    }
+
+    /**
+     * Check if we should include missing data from user_info_data table.
+     *
+     * @return bool
+     */
+    protected function should_include_missing_data(): bool {
+        return !empty($this->get_config_data()[$this->get_field_name() . '_include_missing_data']);
     }
 
     /**
      * Gets SQL data for building SQL.
+     *
+     * We are getting all members for cohorts that match configured condition of
+     * one of the fields from {cohort} table or a custom field that stores value
+     * in {customfield_data} table in 'value' column.
      *
      * @return condition_sql
      */
@@ -302,49 +400,85 @@ class cohort_field extends condition_base {
         $result = new condition_sql('', '1=0', []);
 
         if (!$this->is_broken()) {
-            $innertable = condition_sql::generate_table_alias();
-            $outertable = condition_sql::generate_table_alias();
-
             $configuredfield = $this->get_field_name();
             $datatype = $this->get_fields_info()[$configuredfield]->datatype;
-            $ud = condition_sql::generate_table_alias();
+            $fieldstable = condition_sql::generate_table_alias();
 
-            $cohortsqldata = new condition_sql('', '1=0', []);
+            // For custom fields target DB column "value" is from {customfield_data}.
+            // For regular fields target DB column is from {cohort} table, so it's same as configured field.
+            $dbcolumn = !$this->is_custom_field($configuredfield) ? $configuredfield : 'value';
 
             switch ($datatype) {
                 case self::FIELD_DATA_TYPE_TEXT:
-                    $cohortsqldata = $this->get_text_sql_data($ud, $configuredfield);
+                    $fieldsqldata = $this->get_text_sql($fieldstable, $dbcolumn);
                     break;
                 case self::FIELD_DATA_TYPE_CHECKBOX:
                 case self::FIELD_DATA_TYPE_MENU:
-                    $cohortsqldata = $this->get_menu_sql_data($ud, $configuredfield);
+                case self::FIELD_DATA_TYPE_SELECT:
+                    $fieldsqldata = $this->get_menu_sql($fieldstable, $dbcolumn);
                     break;
+                default:
+                    throw new coding_exception('Invalid field type ' . $datatype);
             }
 
             // Including only cohorts with configured fields.
-            $cohortwhere = $cohortsqldata->get_where();
-            $cohortjoin = $cohortsqldata->get_join();
-            $cohortsql = "SELECT $ud.id FROM {cohort} $ud $cohortjoin WHERE $cohortwhere";
-            $params = $cohortsqldata->get_params();
+            $fieldwhere = $fieldsqldata->get_where();
+            $fieldjoin = $fieldsqldata->get_join();
+            $params = $fieldsqldata->get_params();
 
-            // Exclude cohort that managed by a parent rule.
+            if ($this->is_custom_field($configuredfield)) {
+                $cohorttbl = condition_sql::generate_table_alias();
+                $fieldtbl = condition_sql::generate_table_alias();
+                $fieldcategorytbl = condition_sql::generate_table_alias();
+                $shortnameparam = condition_sql::generate_param_alias();
+
+                $params[$shortnameparam] = str_replace(self::CUSTOM_FIELD_PREFIX, '', $configuredfield);
+
+                $cohortwhere = "$fieldcategorytbl.component = 'core_cohort'
+                                     AND $fieldcategorytbl.area = 'cohort'
+                                     AND $fieldtbl.shortname = :$shortnameparam
+                                     AND $fieldwhere";
+
+                if ($this->should_include_missing_data()) {
+                    $cohortwhere .= " OR $fieldstable.instanceid IS NULL";
+                }
+
+                $cohortsql = "SELECT $cohorttbl.id
+                                FROM {cohort} $cohorttbl
+                           LEFT JOIN {customfield_data} $fieldstable ON $fieldstable.instanceid = $cohorttbl.id
+                           LEFT JOIN {customfield_field} $fieldtbl ON $fieldstable.fieldid = $fieldtbl.id
+                           LEFT JOIN {customfield_category} $fieldcategorytbl ON $fieldcategorytbl.id = $fieldtbl.categoryid
+                                     $fieldjoin
+                               WHERE $cohortwhere";
+            } else {
+                $cohorttbl = $fieldstable;
+                $cohortsql = "SELECT $cohorttbl.id
+                                FROM {cohort} $cohorttbl
+                                     $fieldjoin
+                               WHERE $fieldwhere";
+            }
+
+            // Exclude cohort that managed by a related rule.
             $rule = $this->get_rule();
             if ($rule) {
                 $selectedcohortparam = condition_sql::generate_param_alias();
-                $cohortsql .= "AND $ud.id <> :$selectedcohortparam";
+                $cohortsql .= " AND $cohorttbl.id <> :$selectedcohortparam";
                 $params[$selectedcohortparam] = $rule->get('cohortid');
             }
+
+            $cohortmemberstbl = condition_sql::generate_table_alias();
+            $outertbl = condition_sql::generate_table_alias();
 
             // Are we getting members?
             $needmembers = $this->get_cohort_operator_value() == self::OPERATOR_IS_MEMBER_OF;
             // Select all users that are members or not members of selected cohorts depending on selected operator.
-            $join = "LEFT JOIN (SELECT {$innertable}.userid
-                          FROM {cohort_members} $innertable
-                         WHERE {$innertable}.cohortid IN ({$cohortsql})) {$outertable}
-                      ON u.id = {$outertable}.userid";
+            $join = "LEFT JOIN (SELECT {$cohortmemberstbl}.userid
+                          FROM {cohort_members} $cohortmemberstbl
+                         WHERE {$cohortmemberstbl}.cohortid IN ({$cohortsql})) {$outertbl}
+                      ON u.id = {$outertbl}.userid";
 
-            $where = $needmembers ? "$outertable.userid is NOT NULL" : "$outertable.userid is NULL";
-            $result = new condition_sql($join, $where, $params);
+            $cohortwhere = $needmembers ? "$outertbl.userid is NOT NULL" : "$outertbl.userid is NULL";
+            $result = new condition_sql($join, $cohortwhere, $params);
         }
 
         return $result;

@@ -28,7 +28,7 @@ use tool_dynamic_cohorts\condition_sql;
 trait fields_trait {
 
     /**
-     * Gets an list of comparison operators for text fields.
+     * Gets a list of comparison operators for text fields.
      *
      * @return array A list of operators.
      */
@@ -46,7 +46,7 @@ trait fields_trait {
     }
 
     /**
-     * Gets an list of comparison operators for menu fields.
+     * Gets a list of comparison operators for menu fields.
      *
      * @return array A list of operators.
      */
@@ -184,7 +184,7 @@ trait fields_trait {
      * @param string $fieldname Field name.
      * @return condition_sql
      */
-    protected function get_text_sql_data(string $tablealias, string $fieldname): condition_sql {
+    protected function get_text_sql(string $tablealias, string $fieldname): condition_sql {
         global $DB;
 
         $fieldvalue = $this->get_field_value();
@@ -247,7 +247,7 @@ trait fields_trait {
      * @param string $fieldname Field name.
      * @return condition_sql
      */
-    protected function get_menu_sql_data(string $tablealias, string $fieldname): condition_sql {
+    protected function get_menu_sql(string $tablealias, string $fieldname): condition_sql {
         global $DB;
 
         $fieldvalue = $this->get_field_value();

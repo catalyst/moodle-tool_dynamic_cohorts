@@ -36,6 +36,11 @@ abstract class condition_base {
     public const FIELD_DATA_TYPE_MENU = 'menu';
 
     /**
+     * Value for select field types.
+     */
+    public const FIELD_DATA_TYPE_SELECT = 'select';
+
+    /**
      * Value for checkbox field types.
      */
     public const FIELD_DATA_TYPE_CHECKBOX = 'checkbox';

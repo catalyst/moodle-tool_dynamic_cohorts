@@ -176,11 +176,11 @@ class user_custom_profile extends user_profile {
 
         switch ($datatype) {
             case self::FIELD_DATA_TYPE_TEXT:
-                $result = $this->get_text_sql_data($ud, 'data');
+                $result = $this->get_text_sql($ud, 'data');
                 break;
             case self::FIELD_DATA_TYPE_CHECKBOX:
             case self::FIELD_DATA_TYPE_MENU:
-                $result = $this->get_menu_sql_data($ud, 'data');
+                $result = $this->get_menu_sql($ud, 'data');
                 break;
         }
 

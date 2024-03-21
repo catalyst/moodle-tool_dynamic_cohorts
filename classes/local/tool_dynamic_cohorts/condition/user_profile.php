@@ -222,10 +222,10 @@ class user_profile extends condition_base {
 
         switch ($datatype) {
             case self::FIELD_DATA_TYPE_TEXT:
-                $result = $this->get_text_sql_data('u', $this->get_field_name());
+                $result = $this->get_text_sql('u', $this->get_field_name());
                 break;
             case self::FIELD_DATA_TYPE_MENU:
-                $result = $this->get_menu_sql_data('u', $this->get_field_name());
+                $result = $this->get_menu_sql('u', $this->get_field_name());
                 break;
         }
 
