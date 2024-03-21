@@ -396,7 +396,6 @@ class cohort_field_test extends \advanced_testcase {
      */
     public function test_get_events() {
         $this->assertEquals([
-            '\core\event\cohort_updated',
             '\core\event\cohort_member_added',
             '\core\event\cohort_member_removed',
         ], $this->get_condition()->get_events());
