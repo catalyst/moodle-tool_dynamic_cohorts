@@ -141,6 +141,7 @@ class user_profile_test extends \advanced_testcase {
 
         $this->getDataGenerator()->create_user(['username' => 'user1username']);
         $this->getDataGenerator()->create_user(['username' => 'user2username']);
+        $this->getDataGenerator()->create_user(['username' => 'different', 'suspended' => '1']);
 
         $condition = $this->get_condition([
             'profilefield' => 'username',
@@ -181,6 +182,26 @@ class user_profile_test extends \advanced_testcase {
         $result = $condition->get_sql();
         $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
         $totalusers = $DB->count_records('user');
+        $this->assertCount($totalusers - 1, $DB->get_records_sql($sql, $result->get_params()));
+
+        $condition = $this->get_condition([
+            'profilefield' => 'suspended',
+            'suspended_operator' => condition_base::TEXT_IS_EQUAL_TO,
+            'suspended_value' => 1,
+        ]);
+
+        $result = $condition->get_sql();
+        $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
+        $this->assertCount(1, $DB->get_records_sql($sql, $result->get_params()));
+
+        $condition = $this->get_condition([
+            'profilefield' => 'suspended',
+            'suspended_operator' => condition_base::TEXT_IS_NOT_EQUAL_TO,
+            'suspended_value' => 1,
+        ]);
+
+        $result = $condition->get_sql();
+        $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
         $this->assertCount($totalusers - 1, $DB->get_records_sql($sql, $result->get_params()));
     }
 

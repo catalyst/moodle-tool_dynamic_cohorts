@@ -37,7 +37,7 @@ class user_profile extends condition_base {
      * A list of supported default fields.
      */
     protected const SUPPORTED_STANDARD_FIELDS = ['auth', 'firstname', 'lastname', 'username', 'email',  'idnumber',
-        'city', 'country', 'institution', 'department'];
+        'city', 'country', 'institution', 'department', 'suspended'];
 
     /**
      * Return field name in the condition config form.
@@ -80,6 +80,9 @@ class user_profile extends condition_base {
                     break;
                 case self::FIELD_DATA_TYPE_MENU:
                     $this->add_menu_field($mform, $group, $field, $shortname);
+                    break;
+                case self::FIELD_DATA_TYPE_CHECKBOX:
+                    $this->add_checkbox_field($mform, $group, $field, $shortname);
                     break;
                 default:
                     throw new coding_exception('Invalid field type ' . $field->datatype);
@@ -163,6 +166,11 @@ class user_profile extends condition_base {
                     $fields[$field]->datatype = self::FIELD_DATA_TYPE_MENU;
                     $fields[$field]->param1 = $options;
                     break;
+                case 'suspended':
+                    $fields[$field]->name = get_string($field);
+                    $fields[$field]->datatype = self::FIELD_DATA_TYPE_CHECKBOX;
+                    $fields[$field]->param1 = array_combine([0, 1], [get_string('no'), get_string('yes')]);;
+                    break;
                 default:
                     $fields[$field]->name = get_string($field);
                     $fields[$field]->datatype = self::FIELD_DATA_TYPE_TEXT;
@@ -215,6 +223,7 @@ class user_profile extends condition_base {
                 $result = $this->get_text_sql('u', $this->get_field_name());
                 break;
             case self::FIELD_DATA_TYPE_MENU:
+            case self::FIELD_DATA_TYPE_CHECKBOX:
                 $result = $this->get_menu_sql('u', $this->get_field_name());
                 break;
         }
