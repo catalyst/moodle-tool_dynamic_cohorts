@@ -330,33 +330,21 @@ class cohort_field extends condition_base {
      */
     public function get_config_description(): string {
         $cohortoperator = $this->get_cohort_operators()[$this->get_cohort_operator_value()];
-        $fieldname = $this->get_field_name();
+        $configuredfieldname = $this->get_field_name();
 
-        if (empty($fieldname)) {
+        if (empty($configuredfieldname)) {
             return '';
         }
 
-        $fieldinfo = $this->get_fields_info()[$fieldname];
+        $fieldinfo = $this->get_fields_info()[$configuredfieldname];
+        $displayedfieldname = $this->get_field_name_text();
         $fieldoperator = $this->get_operator_text($fieldinfo->datatype);
-        $fieldvalue = $this->get_field_value();
 
-        if ($fieldname == 'contextid') {
-            $fieldvalue = $this->get_category_options()[$fieldvalue];
-        }
-
-        if (in_array($this->get_operator_value(), [self::TEXT_IS_EMPTY, self::TEXT_IS_NOT_EMPTY])) {
-            $fieldvalue = null;
-        }
-
-        if ($fieldinfo->datatype === self::FIELD_DATA_TYPE_SELECT) {
-            $fieldvalue = $fieldinfo->param1[$fieldvalue];
-        }
-
-        $fieldname = $fieldinfo->name;
+        $fieldvalue = $this->get_field_value_text();
 
         $description = get_string('condition:cohort_field_description', 'tool_dynamic_cohorts', (object)[
             'operator' => $cohortoperator,
-            'field' => $fieldname,
+            'field' => $displayedfieldname,
             'fieldoperator' => $fieldoperator,
             'fieldvalue' => $fieldvalue,
         ]);

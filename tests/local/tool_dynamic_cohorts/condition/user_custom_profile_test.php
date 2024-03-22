@@ -150,14 +150,14 @@ class user_custom_profile_test extends \advanced_testcase {
      */
     public function config_description_data_provider(): array {
         return [
-            [user_profile::TEXT_CONTAINS, 'Test field1 contains 123', true],
-            [user_profile::TEXT_DOES_NOT_CONTAIN, 'Test field1 doesn\'t contain 123', true],
-            [user_profile::TEXT_IS_EQUAL_TO, 'Test field1 is equal to 123', true],
-            [user_profile::TEXT_IS_NOT_EQUAL_TO, 'Test field1 isn\'t equal to 123', true],
-            [user_profile::TEXT_STARTS_WITH, 'Test field1 starts with 123', true],
-            [user_profile::TEXT_ENDS_WITH, 'Test field1 ends with 123', true],
-            [user_profile::TEXT_IS_EMPTY, 'Test field1 is empty', true],
-            [user_profile::TEXT_IS_NOT_EMPTY, 'Test field1 is not empty', true],
+            [condition_base::TEXT_CONTAINS, 'Test field1 contains 123', true],
+            [condition_base::TEXT_DOES_NOT_CONTAIN, 'Test field1 doesn\'t contain 123', true],
+            [condition_base::TEXT_IS_EQUAL_TO, 'Test field1 is equal to 123', true],
+            [condition_base::TEXT_IS_NOT_EQUAL_TO, 'Test field1 isn\'t equal to 123', true],
+            [condition_base::TEXT_STARTS_WITH, 'Test field1 starts with 123', true],
+            [condition_base::TEXT_ENDS_WITH, 'Test field1 ends with 123', true],
+            [condition_base::TEXT_IS_EMPTY, 'Test field1 is empty ', true],
+            [condition_base::TEXT_IS_NOT_EMPTY, 'Test field1 is not empty ', true],
         ];
     }
 
@@ -208,25 +208,28 @@ class user_custom_profile_test extends \advanced_testcase {
 
         $this->resetAfterTest();
 
-        $field1 = $this->add_user_profile_field('field1', 'text');
-        $field2 = $this->add_user_profile_field('field2', 'text', ['param1' => "Opt 1\nOpt 2\nOpt 3"]);
+        $fieldtext1 = $this->add_user_profile_field('field1', 'text');
+        $fieldtext2 = $this->add_user_profile_field('field2', 'text', ['param1' => "Opt 1\nOpt 2\nOpt 3"]);
+        $fieldcheckbox = $this->add_user_profile_field('field3', 'checkbox');
 
         $user1 = $this->getDataGenerator()->create_user(['username' => 'user1']);
-        profile_save_data((object)['id' => $user1->id, 'profile_field_' . $field1->shortname => 'User 1 Field 1']);
-        profile_save_data((object)['id' => $user1->id, 'profile_field_' . $field2->shortname => 'Opt 1']);
+        profile_save_data((object)['id' => $user1->id, 'profile_field_' . $fieldtext1->shortname => 'User 1 Field 1']);
+        profile_save_data((object)['id' => $user1->id, 'profile_field_' . $fieldtext2->shortname => 'Opt 1']);
+        profile_save_data((object)['id' => $user1->id, 'profile_field_' . $fieldcheckbox->shortname => '1']);
 
         $user2 = $this->getDataGenerator()->create_user(['username' => 'user2']);
-        profile_save_data((object)['id' => $user2->id, 'profile_field_' . $field1->shortname => 'User 2 Field 1']);
-        profile_save_data((object)['id' => $user2->id, 'profile_field_' . $field2->shortname => 'Opt 2']);
+        profile_save_data((object)['id' => $user2->id, 'profile_field_' . $fieldtext1->shortname => 'User 2 Field 1']);
+        profile_save_data((object)['id' => $user2->id, 'profile_field_' . $fieldtext2->shortname => 'Opt 2']);
+        profile_save_data((object)['id' => $user2->id, 'profile_field_' . $fieldcheckbox->shortname => '0']);
 
         $totalusers = $DB->count_records('user');
 
         $condition = $this->get_condition();
 
-        $fieldname = 'profile_field_' . $field1->shortname;
+        $fieldname = 'profile_field_' . $fieldtext1->shortname;
         $condition->set_config_data([
             'profilefield' => $fieldname,
-            $fieldname . '_operator' => user_profile::TEXT_ENDS_WITH,
+            $fieldname . '_operator' => condition_base::TEXT_ENDS_WITH,
             $fieldname . '_value' => 'Field 1',
         ]);
 
@@ -234,10 +237,10 @@ class user_custom_profile_test extends \advanced_testcase {
         $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
         $this->assertCount(2, $DB->get_records_sql($sql, $result->get_params()));
 
-        $fieldname = 'profile_field_' . $field2->shortname;
+        $fieldname = 'profile_field_' . $fieldtext2->shortname;
         $condition->set_config_data([
             'profilefield' => $fieldname,
-            $fieldname . '_operator' => user_profile::TEXT_IS_NOT_EQUAL_TO,
+            $fieldname . '_operator' => condition_base::TEXT_IS_NOT_EQUAL_TO,
             $fieldname . '_value' => 'Opt 1',
         ]);
 
@@ -245,10 +248,10 @@ class user_custom_profile_test extends \advanced_testcase {
         $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
         $this->assertCount(1, $DB->get_records_sql($sql, $result->get_params()));
 
-        $fieldname = 'profile_field_' . $field2->shortname;
+        $fieldname = 'profile_field_' . $fieldtext2->shortname;
         $condition->set_config_data([
             'profilefield' => $fieldname,
-            $fieldname . '_operator' => user_profile::TEXT_IS_NOT_EQUAL_TO,
+            $fieldname . '_operator' => condition_base::TEXT_IS_NOT_EQUAL_TO,
             $fieldname . '_value' => 'Opt 1',
             'include_missing_data' => 1,
         ]);
@@ -257,10 +260,10 @@ class user_custom_profile_test extends \advanced_testcase {
         $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
         $this->assertCount($totalusers - 1, $DB->get_records_sql($sql, $result->get_params()));
 
-        $fieldname = 'profile_field_' . $field2->shortname;
+        $fieldname = 'profile_field_' . $fieldtext2->shortname;
         $condition->set_config_data([
             'profilefield' => $fieldname,
-            $fieldname . '_operator' => user_profile::TEXT_IS_NOT_EQUAL_TO,
+            $fieldname . '_operator' => condition_base::TEXT_IS_NOT_EQUAL_TO,
             $fieldname . '_value' => 'Opt 1',
             'include_missing_data' => 1,
         ]);
@@ -268,6 +271,18 @@ class user_custom_profile_test extends \advanced_testcase {
         $result = $condition->get_sql();
         $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
         $this->assertCount($totalusers - 1, $DB->get_records_sql($sql, $result->get_params()));
+
+        $fieldname = 'profile_field_' . $fieldcheckbox->shortname;
+        $condition->set_config_data([
+            'profilefield' => $fieldname,
+            $fieldname . '_operator' => condition_base::TEXT_IS_EQUAL_TO,
+            $fieldname . '_value' => '1',
+            'include_missing_data' => 0,
+        ]);
+
+        $result = $condition->get_sql();
+        $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
+        $this->assertCount(1, $DB->get_records_sql($sql, $result->get_params()));
     }
 
     /**
@@ -297,14 +312,14 @@ class user_custom_profile_test extends \advanced_testcase {
 
         $condition->set_config_data([
             'profilefield' => $fieldname,
-            $fieldname . '_operator' => user_profile::TEXT_IS_EMPTY,
+            $fieldname . '_operator' => condition_base::TEXT_IS_EMPTY,
             $fieldname . '_value' => '',
         ]);
         $this->assertFalse($condition->is_broken());
 
         $condition->set_config_data([
             'profilefield' => $fieldname,
-            $fieldname . '_operator' => user_profile::TEXT_IS_NOT_EMPTY,
+            $fieldname . '_operator' => condition_base::TEXT_IS_NOT_EMPTY,
             $fieldname . '_value' => '',
         ]);
         $this->assertFalse($condition->is_broken());
@@ -312,7 +327,7 @@ class user_custom_profile_test extends \advanced_testcase {
         // Break condition.
         $condition->set_config_data([
             'profilefield' => $fieldname,
-            $fieldname . '_operator' => user_profile::TEXT_IS_EQUAL_TO,
+            $fieldname . '_operator' => condition_base::TEXT_IS_EQUAL_TO,
             $fieldname . '_value' => '',
         ]);
         $this->assertTrue($condition->is_broken());
@@ -320,7 +335,7 @@ class user_custom_profile_test extends \advanced_testcase {
         // Break condition.
         $condition->set_config_data([
             'profilefield' => 'notexisting',
-            $fieldname . '_operator' => user_profile::TEXT_IS_EQUAL_TO,
+            $fieldname . '_operator' => condition_base::TEXT_IS_EQUAL_TO,
             $fieldname . '_value' => '123',
         ]);
         $this->assertTrue($condition->is_broken());
