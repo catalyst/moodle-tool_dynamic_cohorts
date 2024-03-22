@@ -80,13 +80,41 @@ trait fields_trait {
             $fieldvalue = $configdata[$field . '_value'];
         }
 
-        // A special case for checkbox field.
+        return $fieldvalue;
+    }
+
+    /**
+     * Return the field name as a text.
+     *
+     * @return string
+     */
+    protected function get_field_name_text(): string {
+        return $this->get_fields_info()[$this->get_field_name()]->name ?? '-';
+    }
+
+    /**
+     * Return a field value as a human-readable text.
+     *
+     * @return string|null
+     */
+    protected function get_field_value_text(): ?string {
         $fieldname = $this->get_field_name();
-        if (!empty($fieldname) && !empty($this->get_fields_info()[$fieldname])) {
-            $datatype = $this->get_fields_info()[$fieldname]->datatype;
-            if ($datatype == self::FIELD_DATA_TYPE_CHECKBOX) {
-                $fieldvalue = empty($fieldvalue) ? get_string('no') : get_string('yes');
+        $fieldvalue = $this->get_field_value();
+        $fieldinfo = $this->get_fields_info();
+
+        if (!empty($fieldname) && !empty($fieldinfo[$fieldname])) {
+            switch ($fieldinfo[$fieldname]->datatype) {
+                case self::FIELD_DATA_TYPE_SELECT:
+                case self::FIELD_DATA_TYPE_MENU:
+                case self::FIELD_DATA_TYPE_CHECKBOX:
+                    $fieldvalue = $fieldinfo[$fieldname]->param1[$fieldvalue];
+                    break;
+
             }
+        }
+
+        if (in_array($this->get_operator_value(), [self::TEXT_IS_EMPTY, self::TEXT_IS_NOT_EMPTY])) {
+            $fieldvalue = null;
         }
 
         return $fieldvalue;
@@ -102,7 +130,7 @@ trait fields_trait {
     }
 
     /**
-     *  Returns a text for the configured operator based on a field data type.
+     *  Returns a human-readable text for the configured operator based on a field data type.
      *
      * @param string $fielddatatype Field data type.
      * @return string

@@ -49,6 +49,7 @@ $string['condition:cohort_membership_description'] = 'A user {$a->operator} {$a-
 $string['condition:cohort_membership_broken_description'] = 'Condition is broken. Using the same cohort that the given rule is configured to manage to.';
 $string['condition:cohort_field'] = 'Cohort field';
 $string['condition:cohort_field_description'] = 'A user {$a->operator} cohorts with field \'{$a->field}\' {$a->fieldoperator} {$a->fieldvalue}';
+$string['condition:profile_field_description'] = '{$a->field} {$a->fieldoperator} {$a->fieldvalue}';
 $string['condition:user_profile']  = 'User standard profile field';
 $string['condition:user_custom_profile'] = 'User custom profile field';
 $string['cf_include_missing_data'] = 'Include cohorts with missing data.';

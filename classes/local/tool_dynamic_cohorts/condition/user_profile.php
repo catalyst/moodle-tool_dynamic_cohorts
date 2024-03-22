@@ -175,39 +175,29 @@ class user_profile extends condition_base {
     }
 
     /**
-     * Return the field name as a text.
-     *
-     * @return string
-     */
-    protected function get_field_text(): string {
-        return $this->get_fields_info()[$this->get_field_name()]->name ?? '-';
-    }
-
-    /**
      * Human-readable description of the configured condition.
      *
      * @return string
      */
     public function get_config_description(): string {
-        $fieldname = $this->get_field_name();
 
-        if (empty($fieldname)) {
+        $configuredfieldname = $this->get_field_name();
+
+        if (empty($configuredfieldname)) {
             return '';
         }
 
-        $datatype = $this->get_fields_info()[$fieldname]->datatype;
+        $fieldinfo = $this->get_fields_info()[$configuredfieldname];
+        $displayedfieldname = $this->get_field_name_text();
+        $fieldoperator = $this->get_operator_text($fieldinfo->datatype);
 
-        if (in_array($this->get_operator_value(), [self::TEXT_IS_EMPTY, self::TEXT_IS_NOT_EMPTY])) {
-            return $this->get_field_text() . ' ' . $this->get_operator_text($datatype);
-        } else {
-            $fieldvalue = $this->get_field_value();
-            if ($fieldname == 'auth') {
-                $authplugins = core_plugin_manager::instance()->get_plugins_of_type('auth');
-                $fieldvalue = $authplugins[$fieldvalue]->displayname;
-            }
+        $fieldvalue = $this->get_field_value_text();
 
-            return $this->get_field_text() . ' '. $this->get_operator_text($datatype) . ' ' . $fieldvalue;
-        }
+        return get_string('condition:profile_field_description', 'tool_dynamic_cohorts', (object)[
+            'field' => $displayedfieldname,
+            'fieldoperator' => $fieldoperator,
+            'fieldvalue' => $fieldvalue,
+        ]);
     }
 
     /**

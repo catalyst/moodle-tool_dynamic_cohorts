@@ -90,14 +90,14 @@ class user_profile_test extends \advanced_testcase {
      */
     public function config_description_data_provider(): array {
         return [
-            [user_profile::TEXT_CONTAINS, 'First name contains 123'],
-            [user_profile::TEXT_DOES_NOT_CONTAIN, 'First name doesn\'t contain 123'],
-            [user_profile::TEXT_IS_EQUAL_TO, 'First name is equal to 123'],
-            [user_profile::TEXT_IS_NOT_EQUAL_TO, 'First name isn\'t equal to 123'],
-            [user_profile::TEXT_STARTS_WITH, 'First name starts with 123'],
-            [user_profile::TEXT_ENDS_WITH, 'First name ends with 123'],
-            [user_profile::TEXT_IS_EMPTY, 'First name is empty'],
-            [user_profile::TEXT_IS_NOT_EMPTY, 'First name is not empty'],
+            [condition_base::TEXT_CONTAINS, 'First name contains 123'],
+            [condition_base::TEXT_DOES_NOT_CONTAIN, 'First name doesn\'t contain 123'],
+            [condition_base::TEXT_IS_EQUAL_TO, 'First name is equal to 123'],
+            [condition_base::TEXT_IS_NOT_EQUAL_TO, 'First name isn\'t equal to 123'],
+            [condition_base::TEXT_STARTS_WITH, 'First name starts with 123'],
+            [condition_base::TEXT_ENDS_WITH, 'First name ends with 123'],
+            [condition_base::TEXT_IS_EMPTY, 'First name is empty '],
+            [condition_base::TEXT_IS_NOT_EMPTY, 'First name is not empty '],
         ];
     }
 
@@ -124,7 +124,7 @@ class user_profile_test extends \advanced_testcase {
     public function test_config_description_for_auth_field() {
         $instance = $this->get_condition([
             'profilefield' => 'auth',
-            'auth_operator' => user_profile::TEXT_IS_EQUAL_TO,
+            'auth_operator' => condition_base::TEXT_IS_EQUAL_TO,
             'auth_value' => 'manual',
         ]);
 
@@ -144,7 +144,7 @@ class user_profile_test extends \advanced_testcase {
 
         $condition = $this->get_condition([
             'profilefield' => 'username',
-            'username_operator' => user_profile::TEXT_IS_EQUAL_TO,
+            'username_operator' => condition_base::TEXT_IS_EQUAL_TO,
             'username_value' => 'user1username',
         ]);
 
@@ -154,7 +154,7 @@ class user_profile_test extends \advanced_testcase {
 
         $condition->set_config_data([
             'profilefield' => 'username',
-            'username_operator' => user_profile::TEXT_STARTS_WITH,
+            'username_operator' => condition_base::TEXT_STARTS_WITH,
             'username_value' => 'user',
         ]);
 
@@ -164,7 +164,7 @@ class user_profile_test extends \advanced_testcase {
 
         $condition->set_config_data([
             'profilefield' => 'username',
-            'username_operator' => user_profile::TEXT_ENDS_WITH,
+            'username_operator' => condition_base::TEXT_ENDS_WITH,
             'username_value' => 'username',
         ]);
 
@@ -174,7 +174,7 @@ class user_profile_test extends \advanced_testcase {
 
         $condition->set_config_data([
             'profilefield' => 'username',
-            'username_operator' => user_profile::TEXT_IS_NOT_EQUAL_TO,
+            'username_operator' => condition_base::TEXT_IS_NOT_EQUAL_TO,
             'username_value' => 'user1username',
         ]);
 
@@ -205,14 +205,14 @@ class user_profile_test extends \advanced_testcase {
 
         $condition->set_config_data([
             'profilefield' => 'username',
-            'username_operator' => user_profile::TEXT_IS_EMPTY,
+            'username_operator' => condition_base::TEXT_IS_EMPTY,
             'username_value' => '',
         ]);
         $this->assertFalse($condition->is_broken());
 
         $condition->set_config_data([
             'profilefield' => 'username',
-            'username_operator' => user_profile::TEXT_IS_NOT_EMPTY,
+            'username_operator' => condition_base::TEXT_IS_NOT_EMPTY,
             'username_value' => '',
         ]);
         $this->assertFalse($condition->is_broken());
@@ -220,7 +220,7 @@ class user_profile_test extends \advanced_testcase {
         // Break condition.
         $condition->set_config_data([
             'profilefield' => 'username',
-            'username_operator' => user_profile::TEXT_IS_EQUAL_TO,
+            'username_operator' => condition_base::TEXT_IS_EQUAL_TO,
             'username_value' => '',
         ]);
         $this->assertTrue($condition->is_broken());
@@ -228,7 +228,7 @@ class user_profile_test extends \advanced_testcase {
         // Break condition.
         $condition->set_config_data([
             'profilefield' => 'notexisting',
-            'username_operator' => user_profile::TEXT_IS_EQUAL_TO,
+            'username_operator' => condition_base::TEXT_IS_EQUAL_TO,
             'username_value' => '123',
         ]);
         $this->assertTrue($condition->is_broken());
