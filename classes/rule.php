@@ -98,7 +98,7 @@ class rule extends persistent {
      *
      * @return bool
      */
-    public function is_enabled() : bool {
+    public function is_enabled(): bool {
         return (bool) $this->get('enabled');
     }
 

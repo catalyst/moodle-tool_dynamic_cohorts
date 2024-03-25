@@ -89,7 +89,7 @@ class cohort_field_test extends \advanced_testcase {
      *
      * @return array[]
      */
-    public function config_description_data_provider(): array {
+    public static function config_description_data_provider(): array {
         return [
             [condition_base::TEXT_CONTAINS, 'A user is not member of cohorts with field \'Theme\' contains 123'],
             [condition_base::TEXT_DOES_NOT_CONTAIN, 'A user is not member of cohorts with field \'Theme\' doesn\'t contain 123'],

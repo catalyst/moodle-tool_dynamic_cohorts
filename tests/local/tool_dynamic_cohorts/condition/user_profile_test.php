@@ -88,7 +88,7 @@ class user_profile_test extends \advanced_testcase {
      *
      * @return array[]
      */
-    public function config_description_data_provider(): array {
+    public static function config_description_data_provider(): array {
         return [
             [condition_base::TEXT_CONTAINS, 'First name contains 123'],
             [condition_base::TEXT_DOES_NOT_CONTAIN, 'First name doesn\'t contain 123'],
