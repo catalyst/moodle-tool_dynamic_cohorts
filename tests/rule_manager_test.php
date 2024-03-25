@@ -136,7 +136,7 @@ class rule_manager_test extends \advanced_testcase {
      *
      * @return array
      */
-    public function process_rule_form_with_invalid_data_provider(): array {
+    public static function process_rule_form_with_invalid_data_provider(): array {
         return [
             [[]],
             [['name' => 'Test']],

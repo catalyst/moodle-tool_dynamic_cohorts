@@ -148,7 +148,7 @@ class user_custom_profile_test extends \advanced_testcase {
      *
      * @return array[]
      */
-    public function config_description_data_provider(): array {
+    public static function config_description_data_provider(): array {
         return [
             [condition_base::TEXT_CONTAINS, 'Test field1 contains 123', true],
             [condition_base::TEXT_DOES_NOT_CONTAIN, 'Test field1 doesn\'t contain 123', true],

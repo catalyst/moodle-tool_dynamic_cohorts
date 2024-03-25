@@ -32,7 +32,7 @@ trait fields_trait {
      *
      * @return array A list of operators.
      */
-    protected function get_text_operators() : array {
+    protected function get_text_operators(): array {
         return [
             self::TEXT_CONTAINS => get_string('contains', 'filters'),
             self::TEXT_DOES_NOT_CONTAIN => get_string('doesnotcontain', 'filters'),
@@ -50,7 +50,7 @@ trait fields_trait {
      *
      * @return array A list of operators.
      */
-    protected function get_menu_operators() : array {
+    protected function get_menu_operators(): array {
         return [
             self::TEXT_IS_EQUAL_TO => get_string('isequalto', 'filters'),
             self::TEXT_IS_NOT_EQUAL_TO => get_string('isnotequalto', 'filters'),
