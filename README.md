@@ -2,9 +2,9 @@
 <img src="https://github.com/catalyst/moodle-tool_dynamic_cohorts/actions/workflows/ci.yml/badge.svg?branch=3AMOODLE_401_STABLE" >
 </a>
 
-# Dynamic cohort rules #
+# Dynamic cohorts #
 
-Dynamic cohort rules plugin can dynamically add and remove users from cohorts based on rules, which themselves are composed of conditions.
+Dynamic cohorts plugin allows dynamically add and remove users from cohorts based on configured rules, which themselves are composed of conditions.
 
 # Versions and branches
 
@@ -75,7 +75,7 @@ Rules can be processed by two mechanisms:
 1. At least one manually created cohort (See _Site administration > Users > Cohorts_)
 
 ## Creating a rule
-1. Navigate to _Site administration > Users > Accounts > Dynamic cohort rules > Manage rules_
+1. Navigate to _Site administration > Users > Accounts > Dynamic cohorts > Manage rules_
 2. Press the "Add a new rule" button
 3. From this form you can specify the cohort users will be added to, and add any conditions available in your system. As metioned above, a user must match **all** conditions to be added to the cohort
 4. Press the "Save changes" button
