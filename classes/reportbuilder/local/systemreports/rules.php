@@ -28,6 +28,7 @@ use moodle_url;
 use tool_dynamic_cohorts\rule;
 use pix_icon;
 use html_writer;
+use tool_dynamic_cohorts\rule_manager;
 
 /**
  * Rules admin table.
@@ -88,7 +89,7 @@ class rules extends system_report {
         ))
             ->set_type(column::TYPE_TEXT)
             ->set_is_sortable(false)
-            ->add_fields("{$rulealias}.id")
+            ->add_fields("{$rulealias}.id, {$rulealias}.operator")
             ->add_callback(static function($id, $row): string {
                 $rule = new rule(0, $row);
                 $conditions = count($rule->get_condition_records());
@@ -99,8 +100,10 @@ class rules extends system_report {
                         'data-ruleid' => $rule->get('id'),
                     ]);
                 }
-
-                return $conditions;
+                return  get_string('conditionstext', 'tool_dynamic_cohorts', (object)[
+                    'conditions' => $conditions,
+                    'operator' => rule_manager::get_logical_operator_text($rule->get('operator')),
+                ]);
             });
 
         $this->add_column_from_entity('rule_entity:status');

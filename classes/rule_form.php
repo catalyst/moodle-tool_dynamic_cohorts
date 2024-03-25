@@ -99,6 +99,13 @@ class rule_form extends \moodleform {
         );
         $mform->addHelpButton('bulkprocessing', 'bulkprocessing', 'tool_dynamic_cohorts');
 
+        $mform->addElement('select',
+            'operator',
+            get_string('logical_operator', 'tool_dynamic_cohorts'),
+            [rule_manager::CONDITIONS_OPERATOR_AND => 'AND', rule_manager::CONDITIONS_OPERATOR_OR => 'OR']);
+        $mform->addHelpButton('operator', 'logical_operator', 'tool_dynamic_cohorts');
+        $mform->setType('operator', PARAM_INT);
+
         $this->add_action_buttons();
     }
 

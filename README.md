@@ -54,12 +54,13 @@ Conditions are simple predicates which assert something about a user in the syst
 
 ## Rules
 
-Rules are what determine if a user will be added or removed from a cohort. A rule is defined by two things:
+Rules are what determine if a user will be added or removed from a cohort. A rule is defined by few things:
 
 1. A cohort
 2. A set of conditions
+3. A logical operator to be applied for conditions (OR/AND)
 
-For a user to be added to the cohort specified by a rule, they must match all of the rule's conditions. 
+For users to be added to the cohort specified by a rule, they must match all of rule's conditions (logical operator AND) or any of rule's conditions (logical operator OR). 
 
 **NB:** A cohort can be managed by _one and only one_ rule. This is to prevent rules competing over users in a cohort (e.g., to avoid situations where Rule A wants users a, b, c to be in a cohort, but Rule B wants to remove user c from the same cohort). 
 
