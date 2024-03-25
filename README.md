@@ -35,6 +35,14 @@ Alternatively, you can run
 
 to complete the installation from the command line.
 
+# Similar plugins
+There are similar plugins that can add users to cohorts dynamically based on user profile fields.
+
+* Profile field based cohort membership https://moodle.org/plugins/local_profilecohort
+* Smart Cohort https://moodle.org/plugins/local_cnw_smartcohort
+* Auto-cohort plugin https://moodle.org/plugins/local_cohortauto
+
+However, "Dynamic cohorts" plugin gets this all to the next level as it provides an API for other plugins to implement pretty much any condition that can limit users from mdl_user table by SQL.
 
 # How does it work?
 
