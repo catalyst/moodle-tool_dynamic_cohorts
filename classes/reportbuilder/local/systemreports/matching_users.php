@@ -52,7 +52,7 @@ class matching_users extends system_report {
             $this->add_base_condition_sql(' true = false');
         }
 
-        $sql = condition_manager::build_sql_data($conditions);
+        $sql = condition_manager::build_sql_data($conditions, $rule->get('operator'));
 
         $this->add_base_fields('DISTINCT u.id');
         $this->add_join($sql->get_join());

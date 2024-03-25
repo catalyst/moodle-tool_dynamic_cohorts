@@ -211,12 +211,14 @@ class condition_manager {
      * A helper function to build sql data for given list of conditions.
      *
      * @param \tool_dynamic_cohorts\condition[] $conditions A list of conditions.
-     * @param int|null $userid
+     * @param string $operator Logical operator.
+     * @param int|null $userid Optional user id in case we need to build SQL for one user. For example when event is triggered.
      *
      * @return \tool_dynamic_cohorts\condition_sql
      */
-    public static function build_sql_data(array $conditions, ?int $userid = null): condition_sql {
-        $where = ' u.deleted = 0 ';
+    public static function build_sql_data(array $conditions, string $operator = rule_manager::CONDITIONS_OPERATOR_AND,
+                                          ?int $userid = null): condition_sql {
+        $where = '';
         $join = '';
         $params = [];
 
@@ -239,7 +241,10 @@ class condition_manager {
             }
 
             if (!empty($sqldata->get_where())) {
-                $where .= ' AND (' . $sqldata->get_where() . ')';
+                if (!empty($where)) {
+                    $where .= ' ' . rule_manager::get_logical_operator_text($operator);
+                }
+                $where .= ' (' . $sqldata->get_where() . ')';
             }
 
             if (!empty($sqldata->get_params())) {
@@ -249,9 +254,11 @@ class condition_manager {
 
         if ($userid) {
             $userparam = condition_sql::generate_param_alias();
-            $where .= " AND u.id = :{$userparam} ";
+            $where .= " AND ( u.id = :{$userparam}) ";
             $params += [$userparam => $userid];
         }
+
+        $where .= '  AND ( u.deleted = 0) ';
 
         return new condition_sql($join, $where, $params);
     }

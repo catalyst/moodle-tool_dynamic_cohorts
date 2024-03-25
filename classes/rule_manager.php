@@ -43,6 +43,16 @@ class rule_manager {
     const BULK_PROCESSING_SIZE = 10000;
 
     /**
+     * Conditions logical operator AND.
+     */
+    const CONDITIONS_OPERATOR_AND = 0;
+
+    /**
+     * Conditions logical operator OR.
+     */
+    const CONDITIONS_OPERATOR_OR = 1;
+
+    /**
      * Builds rule edit URL.
      *
      * @param rule $rule Rule instance.
@@ -121,6 +131,7 @@ class rule_manager {
             'cohortid' => $formdata->cohortid,
             'description' => $formdata->description,
             'bulkprocessing' => $formdata->bulkprocessing,
+            'operator' => $formdata->operator,
         ];
 
         $oldcohortid = 0;
@@ -223,7 +234,7 @@ class rule_manager {
         $sql = "SELECT DISTINCT u.id FROM {user} u";
 
         try {
-            $sqldata = condition_manager::build_sql_data($conditions, $userid);
+            $sqldata = condition_manager::build_sql_data($conditions, $rule->get('operator'), $userid);
         } catch (\Exception $exception ) {
             self::trigger_matching_failed_event($rule, $exception->getMessage());
             $rule->mark_broken();
@@ -261,7 +272,7 @@ class rule_manager {
         $sql = "SELECT COUNT(DISTINCT u.id) cnt FROM {user} u";
 
         try {
-            $sqldata = condition_manager::build_sql_data($conditions, $userid);
+            $sqldata = condition_manager::build_sql_data($conditions, $rule->get('operator'), $userid);
         } catch (\Exception $exception ) {
             self::trigger_matching_failed_event($rule, $exception->getMessage());
             $rule->mark_broken();
@@ -399,5 +410,15 @@ class rule_manager {
         }
 
         return $rules;
+    }
+
+    /**
+     * Returns logical operator text based on value.
+     *
+     * @param int $operator Operator value.
+     * @return string
+     */
+    public static function get_logical_operator_text(int $operator): string {
+        return $operator == self::CONDITIONS_OPERATOR_AND ? 'AND' : 'OR';
     }
 }

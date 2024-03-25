@@ -20,6 +20,7 @@ use core\event\user_created;
 use tool_dynamic_cohorts\event\condition_created;
 use tool_dynamic_cohorts\event\condition_deleted;
 use tool_dynamic_cohorts\event\condition_updated;
+use tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_profile;
 
 /**
  * Tests for condition manager class.
@@ -209,5 +210,69 @@ class condition_manager_test extends \advanced_testcase {
 
         $this->assertArrayHasKey('tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_custom_profile', $conditions);
         $this->assertArrayHasKey('tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_profile', $conditions);
+    }
+
+    /**
+     * Basic test of building SQL data.
+     */
+    public function test_build_sql_data() {
+        $this->resetAfterTest();
+
+        $this->getDataGenerator()->create_user(['username' => 'user1username']);
+        $this->getDataGenerator()->create_user(['username' => 'user2username']);
+        $this->getDataGenerator()->create_user(['username' => 'test']);
+
+        $cohort = $this->getDataGenerator()->create_cohort();
+
+        $rule = new rule(0, (object)['name' => 'Test rule 1', 'cohortid' => $cohort->id,
+            'operator' => rule_manager::CONDITIONS_OPERATOR_OR]);
+        $rule->save();
+
+        $conditions = [];
+
+        $condition = user_profile::get_instance(0, (object)['ruleid' => $rule->get('id'), 'sortorder' => 1]);
+        $condition->set_config_data([
+            'profilefield' => 'username',
+            'username_operator' => condition_base::TEXT_IS_EQUAL_TO,
+            'username_value' => 'user1username',
+        ]);
+        $condition->get_record()->save();
+        $conditions[] = $condition->get_record();
+
+        $condition = user_profile::get_instance(0, (object)['ruleid' => $rule->get('id'), 'sortorder' => 1]);
+        $condition->set_config_data([
+            'profilefield' => 'username',
+            'username_operator' => condition_base::TEXT_IS_EQUAL_TO,
+            'username_value' => 'user2username',
+        ]);
+        $condition->get_record()->save();
+        $conditions[] = $condition->get_record();
+
+        $sql = condition_manager::build_sql_data($conditions);
+        $this->assertEquals('', $sql->get_join());
+        $this->assertStringNotContainsString('OR', $sql->get_where());
+        $this->assertStringContainsString('AND ( u.deleted = 0)', $sql->get_where());
+        $this->assertTrue(in_array('user1username', $sql->get_params()));
+        $this->assertTrue(in_array('user2username', $sql->get_params()));
+        $this->assertStringNotContainsString('AND ( u.id = ', $sql->get_where());
+        $this->assertFalse(in_array(777, $sql->get_params()));
+
+        $sql = condition_manager::build_sql_data($conditions, rule_manager::CONDITIONS_OPERATOR_OR);
+        $this->assertEquals('', $sql->get_join());
+        $this->assertStringContainsString('OR', $sql->get_where());
+        $this->assertStringContainsString('AND ( u.deleted = 0)', $sql->get_where());
+        $this->assertTrue(in_array('user1username', $sql->get_params()));
+        $this->assertTrue(in_array('user2username', $sql->get_params()));
+        $this->assertStringNotContainsString('AND ( u.id = ', $sql->get_where());
+        $this->assertFalse(in_array(777, $sql->get_params()));
+
+        $sql = condition_manager::build_sql_data($conditions, rule_manager::CONDITIONS_OPERATOR_OR, 777);
+        $this->assertEquals('', $sql->get_join());
+        $this->assertStringContainsString('OR', $sql->get_where());
+        $this->assertStringContainsString('AND ( u.deleted = 0)', $sql->get_where());
+        $this->assertStringContainsString('AND ( u.id = ', $sql->get_where());
+        $this->assertTrue(in_array('user1username', $sql->get_params()));
+        $this->assertTrue(in_array('user2username', $sql->get_params()));
+        $this->assertTrue(in_array(777, $sql->get_params()));
     }
 }
