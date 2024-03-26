@@ -48,6 +48,9 @@ $PAGE->requires->js_call_amd('tool_dynamic_cohorts/manage_rules', 'init');
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('managerules', 'tool_dynamic_cohorts'));
-echo $OUTPUT->single_button($editurl, get_string('addrule', 'tool_dynamic_cohorts'), 'post', ['primary' => true]);
+echo $OUTPUT->render_from_template('tool_dynamic_cohorts/button', [
+    'url' => $editurl->out(),
+    'text' => get_string('addrule', 'tool_dynamic_cohorts'),
+]);
 echo $report->output();
 echo $OUTPUT->footer();
