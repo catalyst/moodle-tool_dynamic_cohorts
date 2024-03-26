@@ -26,6 +26,10 @@ use tool_dynamic_cohorts\condition_base;
 use tool_dynamic_cohorts\rule;
 use invalid_parameter_exception;
 
+defined('MOODLE_INTERNAL') || die();
+
+require_once($CFG->dirroot . '/lib/externallib.php');
+
 /**
  * Rule conditions external APIs.
  *
