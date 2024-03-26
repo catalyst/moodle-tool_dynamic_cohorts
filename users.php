@@ -59,6 +59,9 @@ $indexurl = new moodle_url('/admin/tool/dynamic_cohorts/index.php');
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading($heading);
-echo $OUTPUT->single_button($indexurl, get_string('backtolistofrules', 'tool_dynamic_cohorts'), 'post', ['primary' => true]);
+echo $OUTPUT->render_from_template('tool_dynamic_cohorts/button', [
+    'url' => $indexurl->out(),
+    'text' => get_string('backtolistofrules', 'tool_dynamic_cohorts'),
+]);
 echo $report->output();
 echo $OUTPUT->footer();
