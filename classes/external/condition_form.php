@@ -25,6 +25,10 @@ use external_value;
 use tool_dynamic_cohorts\condition_base;
 use tool_dynamic_cohorts\condition_form as form;
 
+defined('MOODLE_INTERNAL') || die();
+
+require_once($CFG->dirroot . '/lib/externallib.php');
+
 /**
  * Condition form AJAX submission.
  *

@@ -24,6 +24,10 @@ use tool_dynamic_cohorts\rule;
 use invalid_parameter_exception;
 use tool_dynamic_cohorts\rule_manager;
 
+defined('MOODLE_INTERNAL') || die();
+
+require_once($CFG->dirroot . '/lib/externallib.php');
+
 /**
  * Matching users external APIs.
  *

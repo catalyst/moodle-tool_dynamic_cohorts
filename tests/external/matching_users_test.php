@@ -38,16 +38,6 @@ require_once($CFG->dirroot . '/webservice/tests/helpers.php');
 class matching_users_test extends externallib_advanced_testcase {
 
     /**
-     * Set up.
-     */
-    public function setUp(): void {
-        global $CFG;
-
-        require_once($CFG->dirroot . '/lib/externallib.php');
-        parent::setUp();
-    }
-
-    /**
      * Test exception if rule is not exist.
      */
     public function test_get_total_throws_exception_on_invalid_rule() {
