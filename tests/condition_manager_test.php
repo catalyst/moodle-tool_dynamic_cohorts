@@ -275,4 +275,62 @@ class condition_manager_test extends \advanced_testcase {
         $this->assertTrue(in_array('user2username', $sql->get_params()));
         $this->assertTrue(in_array(777, $sql->get_params()));
     }
+
+    /**
+     * Test that generated SQL should exclude deleted users.
+     */
+    public function test_should_exclude_deleted_users() {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $this->getDataGenerator()->create_user(['username' => 'user1username', 'auth' => 'lti']);
+        $this->getDataGenerator()->create_user(['username' => 'user2username', 'auth' => 'lti']);
+        $usertodeleted = $this->getDataGenerator()->create_user(['username' => 'user3username', 'auth' => 'lti']);
+        $this->getDataGenerator()->create_user(['username' => 'test']);
+
+        $cohort = $this->getDataGenerator()->create_cohort();
+
+        $rule = new rule(0, (object)['name' => 'Test rule 1', 'cohortid' => $cohort->id,
+            'operator' => rule_manager::CONDITIONS_OPERATOR_OR]);
+        $rule->save();
+
+        $conditions = [];
+        $condition = user_profile::get_instance(0, (object)['ruleid' => $rule->get('id'), 'sortorder' => 1]);
+        $condition->set_config_data([
+            'profilefield' => 'username',
+            'username_operator' => condition_base::TEXT_CONTAINS,
+            'username_value' => 'username',
+        ]);
+        $condition->get_record()->save();
+        $conditions[] = $condition->get_record();
+
+        $condition = user_profile::get_instance(0, (object)['ruleid' => $rule->get('id'), 'sortorder' => 1]);
+        $condition->set_config_data([
+            'profilefield' => 'auth',
+            'auth_operator' => condition_base::TEXT_IS_EQUAL_TO,
+            'auth_value' => 'lti',
+        ]);
+        $condition->get_record()->save();
+        $conditions[] = $condition->get_record();
+
+        $sqldataand = condition_manager::build_sql_data($conditions);
+        $sqldataor = condition_manager::build_sql_data($conditions, rule_manager::CONDITIONS_OPERATOR_OR);
+
+        $basesql = "SELECT DISTINCT u.id FROM {user} u ";
+        $sqland = $basesql . $sqldataand->get_join() . ' WHERE ' . $sqldataand->get_where();
+        $sqlor = $basesql . $sqldataor->get_join() . ' WHERE ' . $sqldataor->get_where();
+
+        $this->assertCount(3, $DB->get_records_sql($sqland, $sqldataand->get_params()));
+        $this->assertCount(3, $DB->get_records_sql($sqlor, $sqldataor->get_params()));
+        $this->assertArrayHasKey($usertodeleted->id, $DB->get_records_sql($sqland, $sqldataand->get_params()));
+        $this->assertArrayHasKey($usertodeleted->id, $DB->get_records_sql($sqlor, $sqldataor->get_params()));
+
+        delete_user($usertodeleted);
+
+        $this->assertCount(2, $DB->get_records_sql($sqland, $sqldataand->get_params()));
+        $this->assertCount(2, $DB->get_records_sql($sqlor, $sqldataor->get_params()));
+        $this->assertArrayNotHasKey($usertodeleted->id, $DB->get_records_sql($sqland, $sqldataand->get_params()));
+        $this->assertArrayNotHasKey($usertodeleted->id, $DB->get_records_sql($sqlor, $sqldataor->get_params()));
+    }
 }
