@@ -252,6 +252,11 @@ class condition_manager {
             }
         }
 
+        // If we have conditions let's wrap them all in one big condition.
+        if (!empty($where)) {
+            $where = ' ( ' . $where . ' ) ';
+        }
+
         if ($userid) {
             $userparam = condition_sql::generate_param_alias();
             $where .= " AND ( u.id = :{$userparam}) ";
