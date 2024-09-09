@@ -34,6 +34,12 @@ if ($hassiteconfig) {
         new lang_string('settings:releasemembers_desc', 'tool_dynamic_cohorts'),
         0
     ));
+    $settings->add(new admin_setting_configcheckbox(
+        'tool_dynamic_cohorts/realtime',
+        new lang_string('settings:realtime', 'tool_dynamic_cohorts'),
+        new lang_string('settings:realtime_desc', 'tool_dynamic_cohorts'),
+        1
+    ));
     $ADMIN->add('tool_dynamic_cohorts', $settings);
 }
 

@@ -83,6 +83,10 @@ Rules can be processed by two mechanisms:
 1. By cron: When a rule is created or updated, there may be many users that need to be added or removed from a cohort. This process is handled by cron, and depending on how many users are matched by a rule, this process can take some time. For rules matching large sets of users, some [configuration options](#rule-processing-options) are provided which may be useful to server administrators.
 2. By event: rules may also listen to certain events. When one of these events triggers, appropriate rules will be checked and the user will be added to the appropriate cohort immediately. For example, the User standard profile field rule listens to the "User created" and "User updated" events.
 
+### Disabling realtime processing (processing on event)
+
+There is a global admin setting that allows administrator to enable or disable realtime rule processing. This may be useful if processing taking too long and blocking the user interface.   
+
 # Configuration
 
 ## Prerequisites
