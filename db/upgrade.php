@@ -44,5 +44,20 @@ function xmldb_tool_dynamic_cohorts_upgrade($oldversion): bool {
         upgrade_plugin_savepoint(true, 2024032501, 'tool', 'dynamic_cohorts');
     }
 
+    if ($oldversion < 2024051004) {
+
+        // Define field realtime to be added to tool_dynamic_cohorts.
+        $table = new xmldb_table('tool_dynamic_cohorts');
+        $field = new xmldb_field('realtime', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '1', 'operator');
+
+        // Conditionally launch add field realtime.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Dynamic_cohorts savepoint reached.
+        upgrade_plugin_savepoint(true, 2024051004, 'tool', 'dynamic_cohorts');
+    }
+
     return true;
 }

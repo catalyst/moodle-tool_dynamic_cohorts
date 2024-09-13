@@ -132,6 +132,7 @@ class rule_manager {
             'description' => $formdata->description,
             'bulkprocessing' => $formdata->bulkprocessing,
             'operator' => $formdata->operator,
+            'realtime' => $formdata->realtime,
         ];
 
         $oldcohortid = 0;

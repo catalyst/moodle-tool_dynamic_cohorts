@@ -40,6 +40,11 @@ foreach (rule::get_records() as $rule) {
         notification::warning(get_string('brokenruleswarning', 'tool_dynamic_cohorts'));
         break;
     }
+
+    if ($rule->is_realtime() && !get_config('tool_dynamic_cohorts', 'realtime')) {
+        notification::warning(get_string('realtimedisabledglobally', 'tool_dynamic_cohorts'));
+        break;
+    }
 }
 
 $report = system_report_factory::create(rules::class, context_system::instance(), 'tool_dynamic_cohorts');

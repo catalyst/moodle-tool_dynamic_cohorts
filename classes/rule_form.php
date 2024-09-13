@@ -37,6 +37,8 @@ class rule_form extends \moodleform {
      * Form definition.
      */
     protected function definition() {
+        global $OUTPUT;
+
         $mform = $this->_form;
 
         $mform->addElement('hidden', 'id');
@@ -98,6 +100,26 @@ class rule_form extends \moodleform {
             [0, 1]
         );
         $mform->addHelpButton('bulkprocessing', 'bulkprocessing', 'tool_dynamic_cohorts');
+
+        $mform->addElement(
+            'advcheckbox',
+            'realtime',
+            get_string('realtime', 'tool_dynamic_cohorts'),
+            get_string('enable'),
+            [],
+            [0, 1]
+        );
+        $mform->addHelpButton('realtime', 'realtime', 'tool_dynamic_cohorts');
+
+        if (!get_config('tool_dynamic_cohorts', 'realtime')) {
+            $mform->freeze(['realtime']);
+            $realtimeglobal = $OUTPUT->notification(
+                get_string('realtimedisabledglobally', 'tool_dynamic_cohorts'),
+                'warning',
+                false
+            );
+            $mform->addElement('static', 'realtimeglobal', '', $realtimeglobal);
+        }
 
         $mform->addElement('select',
             'operator',

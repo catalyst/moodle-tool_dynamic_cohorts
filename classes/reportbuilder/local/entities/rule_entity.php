@@ -67,6 +67,7 @@ class rule_entity extends base {
      */
     protected function get_all_columns(): array {
         $alias = $this->get_table_alias('tool_dynamic_cohorts');
+        $globalrealtime = get_config('tool_dynamic_cohorts', 'realtime');
 
         $columns[] = (new column(
             'id',
@@ -115,6 +116,30 @@ class rule_entity extends base {
             ->add_callback(function ($value, $row) {
                 $rule = new rule(0, $row);
                 return !empty($rule->is_bulk_processing()) ? get_string('yes') : get_string('no');
+            });
+
+        $columns[] = (new column(
+            'realtime',
+            new lang_string('rule_entity.realtime', 'tool_dynamic_cohorts'),
+            $this->get_entity_name()
+        ))
+            ->add_joins($this->get_joins())
+            ->set_type(column::TYPE_TEXT)
+            ->add_field("{$alias}.realtime")
+            ->add_fields("{$alias}.id, {$alias}.name, {$alias}.realtime")
+            ->set_is_sortable(true)
+            ->add_callback(function ($value, $row) use ($globalrealtime) {
+                global $OUTPUT;
+
+                $rule = new rule(0, $row);
+                $rulerealtime = $rule->is_realtime();
+                $string = !empty($rulerealtime) ? get_string('yes') : get_string('no');
+
+                if (!empty($rulerealtime) && !$globalrealtime) {
+                    $string .= $OUTPUT->pix_icon('i/warning', get_string('realtimedisabledglobally', 'tool_dynamic_cohorts'));
+                }
+
+                return $string;
             });
 
         $columns[] = (new column(

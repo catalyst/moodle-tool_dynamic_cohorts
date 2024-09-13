@@ -121,6 +121,7 @@ class rule_manager_test extends \advanced_testcase {
             'bulkprocessing' => 0,
             'broken' => 0,
             'operator' => rule_manager::CONDITIONS_OPERATOR_AND,
+            'realtime' => 1,
             'id' => 0,
             'timecreated' => 0,
             'timemodified' => 0,
@@ -149,6 +150,7 @@ class rule_manager_test extends \advanced_testcase {
             [['name' => 'Test', 'enabled' => 1, 'description' => '', 'conditionjson' => '']],
             [['name' => 'Test', 'enabled' => 1, 'cohortid' => 1, 'conditionjson' => '']],
             [['name' => 'Test', 'enabled' => 1, 'cohortid' => 1, 'description' => '']],
+            [['name' => 'Test', 'enabled' => 1, 'cohortid' => 1, 'description' => '', 'conditionjson' => '']],
         ];
     }
 
@@ -179,7 +181,7 @@ class rule_manager_test extends \advanced_testcase {
         $cohort3 = $this->getDataGenerator()->create_cohort();
 
         $formdata = ['name' => 'Test', 'cohortid' => $cohort1->id, 'description' => '',
-            'conditionjson' => '', 'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'conditionjson' => '', 'bulkprocessing' => 1, 'realtime' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
 
         $rule = rule_manager::process_form((object)$formdata);
         $this->assertEquals(1, $DB->count_records(rule::TABLE));
@@ -191,7 +193,7 @@ class rule_manager_test extends \advanced_testcase {
         }
 
         $formdata = ['name' => 'Test', 'cohortid' => $cohort2->id, 'description' => '',
-            'conditionjson' => '', 'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'conditionjson' => '', 'bulkprocessing' => 1, 'realtime' => 0, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         $rule = rule_manager::process_form((object)$formdata);
         $this->assertEquals(2, $DB->count_records(rule::TABLE));
 
@@ -203,7 +205,7 @@ class rule_manager_test extends \advanced_testcase {
 
         $cohort = $this->getDataGenerator()->create_cohort();
         $formdata = ['name' => 'Test1', 'cohortid' => $cohort3->id, 'description' => '',
-            'conditionjson' => '', 'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'conditionjson' => '', 'bulkprocessing' => 0, 'realtime' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         $rule = rule_manager::process_form((object)$formdata);
         $this->assertEquals(3, $DB->count_records(rule::TABLE));
 
@@ -236,7 +238,7 @@ class rule_manager_test extends \advanced_testcase {
 
         $cohort = $this->getDataGenerator()->create_cohort();
         $formdata = ['id' => $rule->get('id'), 'name' => 'Test1', 'cohortid' => $cohort->id,
-            'description' => 'D', 'conditionjson' => '', 'bulkprocessing' => 1,
+            'description' => 'D', 'conditionjson' => '', 'bulkprocessing' => 1, 'realtime' => 1,
             'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         $rule = rule_manager::process_form((object)$formdata);
         $this->assertEquals(1, $DB->count_records(rule::TABLE));
@@ -256,7 +258,7 @@ class rule_manager_test extends \advanced_testcase {
         $this->expectExceptionMessage('Invalid rule data. Cohort is invalid: 999');
 
         $formdata = ['name' => 'Test', 'cohortid' => 999, 'description' => '', 'conditionjson' => '',
-            'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'bulkprocessing' => 1, 'realtime' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         rule_manager::process_form((object)$formdata);
     }
 
@@ -271,7 +273,7 @@ class rule_manager_test extends \advanced_testcase {
         $this->expectExceptionMessage('Invalid rule data. Cohort is invalid: ' . $cohort->id);
 
         $formdata = ['name' => 'Test', 'cohortid' => $cohort->id, 'description' => '',
-            'conditionjson' => '', 'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'conditionjson' => '', 'bulkprocessing' => 1, 'realtime' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         rule_manager::process_form((object)$formdata);
     }
 
@@ -288,13 +290,13 @@ class rule_manager_test extends \advanced_testcase {
         $this->expectExceptionMessage('Cohort ' . $cohort->id . ' is already managed by tool_dynamic_cohorts');
 
         $formdata = ['name' => 'Test1', 'cohortid' => $cohort->id, 'description' => 'D', 'conditionjson' => '',
-            'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'bulkprocessing' => 1, 'realtime' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         rule_manager::process_form((object)$formdata);
         $this->assertEquals('tool_dynamic_cohorts', $DB->get_field('cohort', 'component', ['id' => $cohort->id]));
 
         // Trying to make a new rule with a cohort that is already taken. Should throw exception.
         $formdata = ['name' => 'Test2', 'cohortid' => $cohort->id, 'description' => 'D',
-            'conditionjson' => '', 'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'conditionjson' => '', 'bulkprocessing' => 1, 'realtime' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         rule_manager::process_form((object)$formdata);
     }
 
@@ -309,14 +311,14 @@ class rule_manager_test extends \advanced_testcase {
         $cohort = $this->getDataGenerator()->create_cohort();
 
         $formdata = ['name' => 'Test1', 'cohortid' => $cohort->id, 'description' => 'D',
-            'conditionjson' => '', 'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'conditionjson' => '', 'bulkprocessing' => 1, 'realtime' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         $rule = rule_manager::process_form((object)$formdata);
         $this->assertEquals('tool_dynamic_cohorts', $DB->get_field('cohort', 'component', ['id' => $cohort->id]));
 
         // Update the rule, changing the name. Should work as cohort is the same.
         $formdata = ['id' => $rule->get('id'), 'name' => 'Test1',
             'cohortid' => $cohort->id, 'description' => 'D', 'conditionjson' => '',
-            'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'bulkprocessing' => 1, 'realtime' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         rule_manager::process_form((object)$formdata);
 
         $this->assertEquals('tool_dynamic_cohorts', $DB->get_field('cohort', 'component', ['id' => $cohort->id]));
@@ -332,7 +334,7 @@ class rule_manager_test extends \advanced_testcase {
 
         $eventsink = $this->redirectEvents();
         $formdata = ['name' => 'Test1', 'cohortid' => $cohort->id, 'description' => 'D',
-            'conditionjson' => '', 'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'conditionjson' => '', 'bulkprocessing' => 1, 'realtime' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         $rule = rule_manager::process_form((object) $formdata);
 
         $events = array_filter($eventsink->get_events(), function ($event) {
@@ -346,7 +348,7 @@ class rule_manager_test extends \advanced_testcase {
         // Update the rule, changing the name. Should work as cohort is the same.
         $formdata = ['id' => $rule->get('id'), 'name' => 'Test1',
             'cohortid' => $cohort->id, 'description' => 'D', 'conditionjson' => '', 'bulkprocessing' => 1,
-            'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'realtime' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         rule_manager::process_form((object) $formdata);
 
         $events = array_filter($eventsink->get_events(), function ($event) {
@@ -369,7 +371,7 @@ class rule_manager_test extends \advanced_testcase {
         $this->expectExceptionMessage('Invalid rule data. Missing condition data.');
 
         $formdata = ['name' => 'Test', 'cohortid' => $cohort->id, 'description' => '', 'bulkprocessing' => 1,
-            'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'realtime' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         rule_manager::process_form((object)$formdata);
     }
 
@@ -386,7 +388,7 @@ class rule_manager_test extends \advanced_testcase {
 
         // Creating rule without conditions.
         $formdata = ['name' => 'Test', 'cohortid' => $cohort->id, 'description' => '',
-            'conditionjson' => '', 'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'conditionjson' => '', 'bulkprocessing' => 1, 'realtime' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         $rule = rule_manager::process_form((object)$formdata);
 
         // No conditions yet. Rule should be ok.
@@ -406,7 +408,7 @@ class rule_manager_test extends \advanced_testcase {
 
         $formdata = ['id' => $rule->get('id'), 'name' => 'Test', 'enabled' => 1, 'cohortid' => $cohort->id,
             'description' => '', 'conditionjson' => $conditionjson, 'bulkprocessing' => 1,
-            'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'realtime' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         $rule = rule_manager::process_form((object)$formdata);
         $this->assertEquals(1, $DB->count_records(rule::TABLE));
         $this->assertCount(0, $rule->get_condition_records());
@@ -419,7 +421,7 @@ class rule_manager_test extends \advanced_testcase {
         // Updating the rule with 3 new conditions. Expecting 3 new conditions to be created.
         $formdata = ['id' => $rule->get('id'), 'name' => 'Test', 'enabled' => 1, 'cohortid' => $cohort->id,
             'description' => '', 'conditionjson' => $conditionjson, 'isconditionschanged' => true,
-            'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'realtime' => 1, 'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         $rule = rule_manager::process_form((object)$formdata);
         $this->assertEquals(1, $DB->count_records(rule::TABLE));
         $this->assertCount(3, $rule->get_condition_records());
@@ -453,7 +455,7 @@ class rule_manager_test extends \advanced_testcase {
 
         $formdata = ['id' => $rule->get('id'), 'name' => 'Test', 'enabled' => 1, 'cohortid' => $cohort->id,
             'description' => '', 'conditionjson' => $conditionjson, 'isconditionschanged' => true,
-            'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'realtime' => 1, 'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         $rule = rule_manager::process_form((object)$formdata);
         $this->assertEquals(1, $DB->count_records(rule::TABLE));
         $this->assertCount(3, $rule->get_condition_records());
@@ -467,7 +469,7 @@ class rule_manager_test extends \advanced_testcase {
 
         $formdata = ['id' => $rule->get('id'), 'name' => 'Test', 'enabled' => 1, 'cohortid' => $cohort->id,
             'description' => '', 'conditionjson' => '', 'isconditionschanged' => true,
-            'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
+            'realtime' => 1, 'bulkprocessing' => 1, 'operator' => rule_manager::CONDITIONS_OPERATOR_AND];
         $rule = rule_manager::process_form((object)$formdata);
         $this->assertEquals(1, $DB->count_records(rule::TABLE));
         $this->assertCount(0, $rule->get_condition_records());

@@ -69,6 +69,10 @@ class rule extends persistent {
                 'type' => PARAM_INT,
                 'default' => 0,
             ],
+            'realtime' => [
+                'type' => PARAM_INT,
+                'default' => 1,
+            ],
         ];
     }
 
@@ -108,6 +112,14 @@ class rule extends persistent {
      */
     public function is_bulk_processing(): bool {
         return (bool) $this->get('bulkprocessing');
+    }
+
+    /**
+     * Check if this rule should process realtime.
+     * @return bool
+     */
+    public function is_realtime(): bool {
+        return (bool) $this->get('realtime');
     }
 
     /**

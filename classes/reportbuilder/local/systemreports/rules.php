@@ -81,6 +81,7 @@ class rules extends system_report {
             });
 
         $this->add_column_from_entity('rule_entity:bulkprocessing');
+        $this->add_column_from_entity('rule_entity:realtime');
 
         $this->add_column(new column(
             'conditions',
