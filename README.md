@@ -85,7 +85,9 @@ Rules can be processed by two mechanisms:
 
 ### Disabling realtime processing (processing on event)
 
-There is a global admin setting that allows administrator to enable or disable realtime rule processing. This may be useful if processing taking too long and blocking the user interface.   
+Each rule can be configured to be processed realtime (if any of the related conditions support processing on event).
+
+There is also a global admin setting that allows administrator to enable or disable realtime rule processing globally overriding per rule configuration. 
 
 # Configuration
 

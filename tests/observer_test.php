@@ -51,7 +51,7 @@ class observer_test extends advanced_testcase {
     public function test_user_creation_triggers_rule_processing() {
         global $DB;
 
-        $rule = new rule(0, (object)['name' => 'Test rule 1', 'enabled' => 1, 'cohortid' => $this->cohort->id]);
+        $rule = new rule(0, (object)['name' => 'Test rule 1', 'enabled' => 1, 'cohortid' => $this->cohort->id, 'realtime' => 1]);
         $rule->save();
 
         $condition = condition_base::get_instance(0, (object)[
@@ -87,7 +87,7 @@ class observer_test extends advanced_testcase {
         $user1 = $this->getDataGenerator()->create_user(['username' => 'user1']);
         $user2 = $this->getDataGenerator()->create_user(['username' => 'user2']);
 
-        $rule = new rule(0, (object)['name' => 'Test rule 1', 'enabled' => 1, 'cohortid' => $this->cohort->id]);
+        $rule = new rule(0, (object)['name' => 'Test rule 1', 'enabled' => 1, 'cohortid' => $this->cohort->id, 'realtime' => 1]);
         $rule->save();
 
         $condition = condition_base::get_instance(0, (object)[
@@ -123,7 +123,42 @@ class observer_test extends advanced_testcase {
 
         set_config('realtime', 0, 'tool_dynamic_cohorts');
 
-        $rule = new rule(0, (object)['name' => 'Test rule 1', 'enabled' => 1, 'cohortid' => $this->cohort->id]);
+        $rule = new rule(0, (object)['name' => 'Test rule 1', 'enabled' => 1, 'cohortid' => $this->cohort->id, 'realtime' => 1]);
+        $rule->save();
+
+        $condition = condition_base::get_instance(0, (object)[
+            'classname' => 'tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_profile',
+        ]);
+
+        // Condition username starts with user to catch both users.
+        $condition->set_config_data([
+            'profilefield' => 'username',
+            'username_operator' => user_profile::TEXT_STARTS_WITH,
+            'username_value' => 'user',
+        ]);
+
+        $record = $condition->get_record();
+        $record->set('ruleid', $rule->get('id'));
+        $record->set('sortorder', 0);
+        $record->save();
+
+        $this->assertEquals(0, $DB->count_records('cohort_members', ['cohortid' => $this->cohort->id]));
+
+        $this->getDataGenerator()->create_user(['username' => 'user1']);
+        $this->getDataGenerator()->create_user(['username' => 'user2']);
+
+        $this->assertEquals(0, $DB->count_records('cohort_members', ['cohortid' => $this->cohort->id]));
+    }
+
+    /**
+     * Test that user creation event doesn't trigger rule processing for that user if realtime processing is disabled for the rule.
+     */
+    public function test_realtime_rule_processing_when_disabled_for_a_rule() {
+        global $DB;
+
+        set_config('realtime', 1, 'tool_dynamic_cohorts');
+
+        $rule = new rule(0, (object)['name' => 'Test rule 1', 'enabled' => 1, 'realtime' => 0, 'cohortid' => $this->cohort->id]);
         $rule->save();
 
         $condition = condition_base::get_instance(0, (object)[
