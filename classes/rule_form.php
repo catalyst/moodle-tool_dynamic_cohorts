@@ -91,6 +91,12 @@ class rule_form extends \moodleform {
         $group[] = $mform->createElement('button', 'conditionmodalbutton', get_string('addcondition', 'tool_dynamic_cohorts'));
         $mform->addGroup($group, 'conditiongroup', get_string('condition', 'tool_dynamic_cohorts'), ' ', false);
 
+        try {
+            $crononly = get_config('tool_dynamic_cohorts', 'crononly');
+        } catch (\Exception $e) {
+            $crononly = '0';
+        }
+
         $mform->addElement(
             'advcheckbox',
             'bulkprocessing',
@@ -100,6 +106,11 @@ class rule_form extends \moodleform {
             [0, 1]
         );
         $mform->addHelpButton('bulkprocessing', 'bulkprocessing', 'tool_dynamic_cohorts');
+
+        if ($crononly === '1') {
+            $mform->setDefault('bulkprocessing', '1');
+            $mform->freeze(['bulkprocessing']);
+        }
 
         $mform->addElement(
             'advcheckbox',

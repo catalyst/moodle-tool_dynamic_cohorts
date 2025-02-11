@@ -35,6 +35,12 @@ if ($hassiteconfig) {
         0
     ));
     $settings->add(new admin_setting_configcheckbox(
+        'tool_dynamic_cohorts/crononly',
+        new lang_string('settings:crononly', 'tool_dynamic_cohorts'),
+        new lang_string('settings:crononly_desc', 'tool_dynamic_cohorts'),
+        0
+    ));
+    $settings->add(new admin_setting_configcheckbox(
         'tool_dynamic_cohorts/realtime',
         new lang_string('settings:realtime', 'tool_dynamic_cohorts'),
         new lang_string('settings:realtime_desc', 'tool_dynamic_cohorts'),

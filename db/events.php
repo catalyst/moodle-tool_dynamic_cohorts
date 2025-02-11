@@ -26,7 +26,39 @@ defined('MOODLE_INTERNAL') || die();
 
 $observers = [
     [
-        'eventname' => '*',
+        'eventname' => '\tool_dynamic_cohorts\event\condition_deleted',
+        'callback' => '\tool_dynamic_cohorts\observer::process_event',
+    ],
+    [
+        'eventname' => '\tool_dynamic_cohorts\event\condition_updated',
+        'callback' => '\tool_dynamic_cohorts\observer::process_event',
+    ],
+    [
+        'eventname' => '\tool_dynamic_cohorts\event\matching_failed',
+        'callback' => '\tool_dynamic_cohorts\observer::process_event',
+    ],
+    [
+        'eventname' => '\tool_dynamic_cohorts\event\rule_created',
+        'callback' => '\tool_dynamic_cohorts\observer::process_event',
+    ],
+    [
+        'eventname' => '\tool_dynamic_cohorts\event\rule_deleted',
+        'callback' => '\tool_dynamic_cohorts\observer::process_event',
+    ],
+    [
+        'eventname' => '\tool_dynamic_cohorts\event\rule_updated',
+        'callback' => '\tool_dynamic_cohorts\observer::process_event',
+    ],
+    [
+        'eventname' => '\core\event\user_created',
+        'callback' => '\tool_dynamic_cohorts\observer::process_event',
+    ],
+    [
+        'eventname' => '\core\event\user_updated',
+        'callback' => '\tool_dynamic_cohorts\observer::process_event',
+    ],
+    [
+        'eventname' => '\core\event\user_deleted',
         'callback' => '\tool_dynamic_cohorts\observer::process_event',
     ],
 ];

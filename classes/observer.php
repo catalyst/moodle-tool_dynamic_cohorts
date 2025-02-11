@@ -33,12 +33,20 @@ class observer {
      * @param base $event The event.
      */
     public static function process_event(base $event): void {
-        // Check if realtime processing enabled globally.
-        if (get_config('tool_dynamic_cohorts', 'realtime')) {
-            foreach (condition_manager::get_conditions_with_event($event) as $condition) {
-                foreach (rule_manager::get_rules_with_condition($condition) as $rule) {
-                    if ($rule->is_realtime()) {
-                        rule_manager::process_rule($rule, self::get_userid_from_event($event));
+        try {
+            $crononly = get_config('tool_dynamic_cohorts', 'crononly');
+        } catch (\Exception $e) {
+            $crononly = '0';
+        }
+
+        if ($crononly !== '1') {
+            // Check if realtime processing enabled globally.
+            if (get_config('tool_dynamic_cohorts', 'realtime')) {
+                foreach (condition_manager::get_conditions_with_event($event) as $condition) {
+                    foreach (rule_manager::get_rules_with_condition($condition) as $rule) {
+                        if ($rule->is_realtime()) {
+                            rule_manager::process_rule($rule, self::get_userid_from_event($event));
+                        }
                     }
                 }
             }
