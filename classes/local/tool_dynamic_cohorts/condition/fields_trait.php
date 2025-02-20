@@ -42,6 +42,8 @@ trait fields_trait {
             self::TEXT_ENDS_WITH => get_string('endswith', 'filters'),
             self::TEXT_IS_EMPTY => get_string('isempty', 'filters'),
             self::TEXT_IS_NOT_EMPTY => get_string('isnotempty', 'tool_dynamic_cohorts'),
+            self::TEXT_IN => get_string('textin', 'tool_dynamic_cohorts'),
+            self::TEXT_NOT_IN => get_string('textnotin', 'tool_dynamic_cohorts'),
         ];
     }
 
@@ -340,11 +342,38 @@ trait fields_trait {
                 $where = $DB->sql_compare_text("$tablealias.$fieldname") . " != " . $DB->sql_compare_text(":$param");
                 $params[$param] = '';
                 break;
+            case self::TEXT_IN:
+                [$insql, $inparams] = $DB->get_in_or_equal(explode(', ', $fieldvalue), SQL_PARAMS_QM);
+                
+                foreach($inparams as $key => $val) {    
+                    $insql = $this->str_replace_first('?', ':'.$param, $insql);
+                    $params[$param] = $val;
+                    $param = condition_sql::generate_param_alias();
+                }
+                $where = $DB->sql_compare_text("$tablealias.$fieldname") . " " . $insql;
+                break;
+            case self::TEXT_NOT_IN:
+                [$insql, $inparams] = $DB->get_in_or_equal(explode(', ', $fieldvalue), SQL_PARAMS_QM, 'param', false);
+
+                foreach ($inparams as $key => $val) {
+                    $insql = $this->str_replace_first('?', ':' . $param, $insql);
+                    $params[$param] = $val;
+                    $param = condition_sql::generate_param_alias();
+                }
+                $where = $DB->sql_compare_text("$tablealias.$fieldname") . " " . $insql;
+                break;
             default:
                 return new condition_sql('', '', []);
         }
 
+        
         return new condition_sql('', $where, $params);
+    }
+
+    protected function str_replace_first($search, $replace, $subject)
+    {
+        $search = '/' . preg_quote($search, '/') . '/';
+        return preg_replace($search, $replace, $subject, 1);
     }
 
     /**

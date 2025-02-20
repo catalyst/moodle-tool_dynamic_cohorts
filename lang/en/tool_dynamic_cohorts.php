@@ -165,3 +165,5 @@ $string['realtime'] = 'Real time processing';
 $string['realtime_help'] = 'If enabled, the rule will be processed synchronously as part of the event (if conditions support triggering on the event). Use caution when enabling as long running rule processing will block the user interface.';
 $string['rule_entity.realtime'] = 'Realtime processing';
 $string['realtimedisabledglobally'] = 'Realtime processing disabled globally';
+$string['textin'] = ' set to one of the values';
+$string['textnotin'] = 'not set to one of the values';

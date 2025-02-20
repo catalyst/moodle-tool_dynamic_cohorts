@@ -101,6 +101,16 @@ abstract class condition_base {
     public const TEXT_IS_NOT_EQUAL_TO = 8;
 
     /**
+     * Value for operator text is in array
+     */
+    public const TEXT_IN = 9;
+
+    /**
+     * Value for operator text is not in array
+     */
+    public const TEXT_NOT_IN = 10;
+
+    /**
      * Value for operator date is after.
      */
     public const DATE_IS_AFTER = 1;
