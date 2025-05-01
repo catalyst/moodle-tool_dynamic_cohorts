@@ -178,6 +178,11 @@ class user_profile_interests extends condition_base {
         return empty($data['tags']) || empty($data['tags_operator']);
     }
 
+    /**
+     * Get a list of all user profile interest tags.
+     *
+     * @return array A list of tags with tag ID as the key and tag rawname (display name) as the value.
+     */
     private function get_tags(): array {
         global $DB;
 
