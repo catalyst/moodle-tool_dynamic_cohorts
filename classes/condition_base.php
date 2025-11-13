@@ -36,6 +36,11 @@ abstract class condition_base {
     public const FIELD_DATA_TYPE_MENU = 'menu';
 
     /**
+     * Value for conditional field types.
+     */
+    public const FIELD_DATA_TYPE_CONDITIONAL = 'conditional';
+
+    /**
      * Value for select field types.
      */
     public const FIELD_DATA_TYPE_SELECT = 'select';
