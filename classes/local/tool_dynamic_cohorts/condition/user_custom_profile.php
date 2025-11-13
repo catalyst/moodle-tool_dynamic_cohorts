@@ -54,7 +54,7 @@ class user_custom_profile extends user_profile {
      */
     protected function get_supported_custom_fields(): array {
         return [self::FIELD_DATA_TYPE_TEXT, self::FIELD_DATA_TYPE_MENU,
-            self::FIELD_DATA_TYPE_CHECKBOX, self::FIELD_DATA_TYPE_DATETIME];
+            self::FIELD_DATA_TYPE_CHECKBOX, self::FIELD_DATA_TYPE_DATETIME, self::FIELD_DATA_TYPE_CONDITIONAL];
     }
 
     /**
@@ -78,6 +78,7 @@ class user_custom_profile extends user_profile {
                 ['shortname' => 1, 'name' => 1, 'datatype' => 1, 'param1' => 1]);
 
             switch ($field->datatype) {
+                case self::FIELD_DATA_TYPE_CONDITIONAL:
                 case self::FIELD_DATA_TYPE_MENU:
                     $options = explode("\n", $field->param1);
                     $field->param1 = array_combine($options, $options);
@@ -123,6 +124,7 @@ class user_custom_profile extends user_profile {
                 case self::FIELD_DATA_TYPE_TEXT:
                     $this->add_text_field($mform, $group, $field, $shortname);
                     break;
+                case self::FIELD_DATA_TYPE_CONDITIONAL:
                 case self::FIELD_DATA_TYPE_MENU:
                     $this->add_menu_field($mform, $group, $field, $shortname);
                     break;
@@ -186,6 +188,7 @@ class user_custom_profile extends user_profile {
                 $result = $this->get_text_sql($ud, 'data');
                 break;
             case self::FIELD_DATA_TYPE_CHECKBOX:
+            case self::FIELD_DATA_TYPE_CONDITIONAL:
             case self::FIELD_DATA_TYPE_MENU:
                 $result = $this->get_menu_sql($ud, 'data');
                 break;
