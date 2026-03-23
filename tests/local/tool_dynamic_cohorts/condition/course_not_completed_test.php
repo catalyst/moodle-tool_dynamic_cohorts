@@ -202,4 +202,23 @@ final class course_not_completed_test extends \advanced_testcase {
     public function test_get_events(): void {
         $this->assertEquals([], $this->get_condition()->get_events());
     }
+
+    /**
+     * Test that course_not_completed can never be merged, even when non-broken.
+     *
+     * course_not_completed extends course_completed but uses NOT-completed semantics;
+     * merging multiple NOT-completed conditions under OR would produce incorrect SQL.
+     */
+    public function test_cannot_merge(): void {
+        $this->resetAfterTest();
+
+        $course = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+
+        $condition = $this->get_condition([
+            'courseid'      => $course->id,
+            'timecompleted' => 0,
+        ]);
+
+        $this->assertFalse($condition->can_merge());
+    }
 }

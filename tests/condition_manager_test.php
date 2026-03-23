@@ -21,6 +21,7 @@ use tool_dynamic_cohorts\event\condition_created;
 use tool_dynamic_cohorts\event\condition_deleted;
 use tool_dynamic_cohorts\event\condition_updated;
 use tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\course_completed;
+use tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\course_not_completed;
 use tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_profile;
 
 /**
@@ -553,5 +554,83 @@ final class condition_manager_test extends \advanced_testcase {
         // The two OPERATOR_ANY conditions are merged (EXISTS); OPERATOR_BEFORE keeps its JOIN.
         $this->assertStringContainsStringIgnoringCase('EXISTS', $sql->get_where());
         $this->assertNotEmpty($sql->get_join(), 'OPERATOR_BEFORE condition should still produce a JOIN');
+    }
+
+    /**
+     * Helper to create and save a course_not_completed condition record.
+     *
+     * @param rule $rule
+     * @param int $courseid
+     * @return condition
+     */
+    protected function make_course_not_completed_condition(rule $rule, int $courseid): condition {
+        $instance = course_not_completed::get_instance(0, (object)['ruleid' => $rule->get('id'), 'sortorder' => 1]);
+        $instance->set_config_data(['courseid' => $courseid, 'timecompleted' => 0]);
+        $instance->get_record()->save();
+        return $instance->get_record();
+    }
+
+    /**
+     * Multiple course_not_completed conditions under OR must not be merged.
+     *
+     * course_not_completed uses NOT-completed semantics (LEFT JOIN / IS NULL); merging
+     * them into a single EXISTS ... IN would invert the logic and return wrong results.
+     * This test verifies the SQL is correct and that build_sql_data() does not crash.
+     */
+    public function test_build_sql_data_does_not_merge_course_not_completed_under_or(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $now = time();
+        $studentrole = $DB->get_record('role', ['shortname' => 'student']);
+        $cohort = $this->getDataGenerator()->create_cohort();
+
+        $rule = new rule(0, (object)[
+            'name'     => 'Not-completed OR rule',
+            'cohortid' => $cohort->id,
+            'operator' => rule_manager::CONDITIONS_OPERATOR_OR,
+        ]);
+        $rule->save();
+
+        $course1 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $course2 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+
+        // user1 completed course1 (so has NOT completed course2).
+        // user2 completed neither course.
+        // user3 completed both courses.
+        $user1 = $this->getDataGenerator()->create_user();
+        $user2 = $this->getDataGenerator()->create_user();
+        $user3 = $this->getDataGenerator()->create_user();
+
+        foreach ([$user1, $user3] as $user) {
+            $this->getDataGenerator()->enrol_user($user->id, $course1->id, $studentrole->id);
+        }
+        foreach ([$user1, $user2, $user3] as $user) {
+            $this->getDataGenerator()->enrol_user($user->id, $course2->id, $studentrole->id);
+        }
+
+        (new \completion_completion(['userid' => $user1->id, 'course' => $course1->id]))->mark_complete($now);
+        (new \completion_completion(['userid' => $user3->id, 'course' => $course1->id]))->mark_complete($now);
+        (new \completion_completion(['userid' => $user3->id, 'course' => $course2->id]))->mark_complete($now);
+
+        $conditions = [
+            $this->make_course_not_completed_condition($rule, $course1->id),
+            $this->make_course_not_completed_condition($rule, $course2->id),
+        ];
+
+        // Must not crash (previously would throw coding_exception via incorrect merge).
+        $sql = condition_manager::build_sql_data($conditions, rule_manager::CONDITIONS_OPERATOR_OR);
+
+        // Should not use EXISTS — course_not_completed relies on LEFT JOIN / IS NULL.
+        $this->assertStringNotContainsStringIgnoringCase('EXISTS', $sql->get_where());
+
+        // Correctness: user1 has not completed course2, user2 has not completed either
+        // course, user3 has completed both so should be excluded.
+        $basesql = "SELECT DISTINCT u.id FROM {user} u {$sql->get_join()} WHERE {$sql->get_where()}";
+        $rows = $DB->get_records_sql($basesql, $sql->get_params());
+        $this->assertArrayHasKey($user1->id, $rows, 'user1 has not completed course2 so should match');
+        $this->assertArrayHasKey($user2->id, $rows, 'user2 has not completed either course so should match');
+        $this->assertArrayNotHasKey($user3->id, $rows, 'user3 completed both courses so should not match');
     }
 }
