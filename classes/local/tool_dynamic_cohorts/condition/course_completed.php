@@ -19,6 +19,7 @@ namespace tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition;
 use completion_info;
 use tool_dynamic_cohorts\condition_base;
 use tool_dynamic_cohorts\condition_sql;
+use tool_dynamic_cohorts\rule_manager;
 
 defined('MOODLE_INTERNAL') || die;
 
@@ -217,6 +218,44 @@ class course_completed extends condition_base {
         }
 
         return $sql;
+    }
+
+    /**
+     * Whether this condition can be merged with other course_completed conditions.
+     *
+     * Only OPERATOR_ANY conditions can be merged; date-bounded conditions carry
+     * per-course timestamps that must remain separate.
+     *
+     * @return bool
+     */
+    public function can_merge(): bool {
+        return !$this->is_broken() && $this->get_operator_value() === self::OPERATOR_ANY;
+    }
+
+    /**
+     * Build a single EXISTS subquery covering all merged OPERATOR_ANY instances.
+     *
+     * Replaces N separate JOINs (which produce an N-way cross-product) with one
+     * correlated EXISTS containing an IN() list. Only called for OR rules.
+     *
+     * @param static[] $instances Array of course_completed instances to merge.
+     * @param int $operator Rule logical operator.
+     * @return condition_sql
+     */
+    public static function build_merged_sql(array $instances, int $operator): condition_sql {
+        global $DB;
+
+        if ($operator != rule_manager::CONDITIONS_OPERATOR_OR || empty($instances)) {
+            return new condition_sql('', '1=0', []);
+        }
+
+        $courseids = array_map(fn($instance) => $instance->get_courseid_value(), array_values($instances));
+        [$insql, $params] = $DB->get_in_or_equal($courseids, SQL_PARAMS_NAMED, condition_sql::generate_param_alias());
+
+        $where = "EXISTS (SELECT 1 FROM {course_completions}"
+            . " WHERE userid = u.id AND course $insql AND timecompleted IS NOT NULL)";
+
+        return new condition_sql('', $where, $params);
     }
 
     /**

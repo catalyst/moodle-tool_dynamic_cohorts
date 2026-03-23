@@ -270,4 +270,31 @@ abstract class condition_base {
      * @return bool
      */
     abstract public function is_broken(): bool;
+
+    /**
+     * Whether this condition can be merged with other instances of the same class.
+     *
+     * When multiple merge-capable conditions of the same class appear in an OR rule,
+     * condition_manager will call build_merged_sql() once for the group instead of
+     * generating separate JOINs for each instance, which avoids N-way cross-products.
+     *
+     * @return bool
+     */
+    public function can_merge(): bool {
+        return false;
+    }
+
+    /**
+     * Build a single optimised condition_sql for a group of same-class conditions.
+     *
+     * Only called when can_merge() returns true and the rule operator is OR.
+     * Subclasses that return true from can_merge() must override this method.
+     *
+     * @param static[] $instances Array of condition instances to merge.
+     * @param int $operator Rule logical operator (rule_manager::CONDITIONS_OPERATOR_*).
+     * @return condition_sql
+     */
+    public static function build_merged_sql(array $instances, int $operator): condition_sql {
+        throw new \coding_exception(get_class(reset($instances)) . ' must implement build_merged_sql().');
+    }
 }

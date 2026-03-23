@@ -18,6 +18,7 @@ namespace tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition;
 
 use tool_dynamic_cohorts\condition_base;
 use tool_dynamic_cohorts\rule;
+use tool_dynamic_cohorts\rule_manager;
 
 /**
  * Unit tests for course_completed condition class.
@@ -261,5 +262,154 @@ final class course_completed_test extends \advanced_testcase {
      */
     public function test_get_events(): void {
         $this->assertEquals([], $this->get_condition()->get_events());
+    }
+
+    /**
+     * Test can_merge() returns true only for OPERATOR_ANY on non-broken conditions.
+     */
+    public function test_can_merge(): void {
+        $this->resetAfterTest();
+
+        $course = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+
+        // OPERATOR_ANY on a valid course: mergeable.
+        $condition = $this->get_condition([
+            'courseid' => $course->id,
+            'operator' => course_completed::OPERATOR_ANY,
+            'timecompleted' => 0,
+        ]);
+        $this->assertTrue($condition->can_merge());
+
+        // OPERATOR_BEFORE: not mergeable (date-bounded).
+        $condition = $this->get_condition([
+            'courseid' => $course->id,
+            'operator' => course_completed::OPERATOR_BEFORE,
+            'timecompleted' => time(),
+        ]);
+        $this->assertFalse($condition->can_merge());
+
+        // OPERATOR_AFTER: not mergeable (date-bounded).
+        $condition = $this->get_condition([
+            'courseid' => $course->id,
+            'operator' => course_completed::OPERATOR_AFTER,
+            'timecompleted' => time(),
+        ]);
+        $this->assertFalse($condition->can_merge());
+
+        // Broken condition (non-existent course): not mergeable.
+        $condition = $this->get_condition([
+            'courseid' => 99999,
+            'operator' => course_completed::OPERATOR_ANY,
+            'timecompleted' => 0,
+        ]);
+        $this->assertFalse($condition->can_merge());
+    }
+
+    /**
+     * Test build_merged_sql() returns a 1=0 fallback for AND operator or empty input.
+     */
+    public function test_build_merged_sql_returns_fallback_for_non_or_operators(): void {
+        $this->resetAfterTest();
+
+        $course = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $inst = $this->get_condition([
+            'courseid' => $course->id,
+            'operator' => course_completed::OPERATOR_ANY,
+            'timecompleted' => 0,
+        ]);
+
+        // AND operator: not supported, returns 1=0.
+        $result = course_completed::build_merged_sql([$inst], rule_manager::CONDITIONS_OPERATOR_AND);
+        $this->assertEmpty($result->get_join());
+        $this->assertSame('1=0', $result->get_where());
+        $this->assertEmpty($result->get_params());
+
+        // Empty instances array: returns 1=0.
+        $result = course_completed::build_merged_sql([], rule_manager::CONDITIONS_OPERATOR_OR);
+        $this->assertEmpty($result->get_join());
+        $this->assertSame('1=0', $result->get_where());
+        $this->assertEmpty($result->get_params());
+    }
+
+    /**
+     * Test build_merged_sql() produces an EXISTS subquery with an IN list for OR rules.
+     */
+    public function test_build_merged_sql_uses_exists_with_in(): void {
+        $this->resetAfterTest();
+
+        $course1 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $course2 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+
+        $inst1 = $this->get_condition([
+            'courseid' => $course1->id,
+            'operator' => course_completed::OPERATOR_ANY,
+            'timecompleted' => 0,
+        ]);
+        $inst2 = $this->get_condition([
+            'courseid' => $course2->id,
+            'operator' => course_completed::OPERATOR_ANY,
+            'timecompleted' => 0,
+        ]);
+
+        $result = course_completed::build_merged_sql([$inst1, $inst2], rule_manager::CONDITIONS_OPERATOR_OR);
+
+        // No JOIN — all filtering is in the EXISTS subquery.
+        $this->assertEmpty($result->get_join());
+
+        // WHERE uses EXISTS … IN.
+        $where = $result->get_where();
+        $this->assertStringContainsStringIgnoringCase('EXISTS', $where);
+        $this->assertStringContainsStringIgnoringCase('IN', $where);
+        $this->assertStringContainsString('timecompleted IS NOT NULL', $where);
+
+        // Both course IDs appear in the parameter list.
+        $params = $result->get_params();
+        $this->assertNotEmpty($params);
+        $this->assertContainsEquals($course1->id, $params);
+        $this->assertContainsEquals($course2->id, $params);
+    }
+
+    /**
+     * Test build_merged_sql() returns the correct set of users from the database.
+     */
+    public function test_build_merged_sql_returns_correct_users(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $now = time();
+        $studentrole = $DB->get_record('role', ['shortname' => 'student']);
+
+        $course1 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $course2 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+
+        $user1 = $this->getDataGenerator()->create_user(); // completes course1 only
+        $user2 = $this->getDataGenerator()->create_user(); // completes course2 only
+        $user3 = $this->getDataGenerator()->create_user(); // completes neither
+
+        $this->getDataGenerator()->enrol_user($user1->id, $course1->id, $studentrole->id);
+        $this->getDataGenerator()->enrol_user($user2->id, $course2->id, $studentrole->id);
+
+        (new \completion_completion(['userid' => $user1->id, 'course' => $course1->id]))->mark_complete($now);
+        (new \completion_completion(['userid' => $user2->id, 'course' => $course2->id]))->mark_complete($now);
+
+        $inst1 = $this->get_condition([
+            'courseid' => $course1->id,
+            'operator' => course_completed::OPERATOR_ANY,
+            'timecompleted' => 0,
+        ]);
+        $inst2 = $this->get_condition([
+            'courseid' => $course2->id,
+            'operator' => course_completed::OPERATOR_ANY,
+            'timecompleted' => 0,
+        ]);
+
+        $result = course_completed::build_merged_sql([$inst1, $inst2], rule_manager::CONDITIONS_OPERATOR_OR);
+        $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
+        $rows = $DB->get_records_sql($sql, $result->get_params());
+
+        $this->assertArrayHasKey($user1->id, $rows, 'User who completed course1 should be included');
+        $this->assertArrayHasKey($user2->id, $rows, 'User who completed course2 should be included');
+        $this->assertArrayNotHasKey($user3->id, $rows, 'User with no completions should be excluded');
     }
 }

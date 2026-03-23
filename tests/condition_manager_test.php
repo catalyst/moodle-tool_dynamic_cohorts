@@ -20,6 +20,7 @@ use core\event\user_created;
 use tool_dynamic_cohorts\event\condition_created;
 use tool_dynamic_cohorts\event\condition_deleted;
 use tool_dynamic_cohorts\event\condition_updated;
+use tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\course_completed;
 use tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_profile;
 
 /**
@@ -331,5 +332,226 @@ final class condition_manager_test extends \advanced_testcase {
         $this->assertCount(2, $DB->get_records_sql($sqlor, $sqldataor->get_params()));
         $this->assertArrayNotHasKey($usertodeleted->id, $DB->get_records_sql($sqland, $sqldataand->get_params()));
         $this->assertArrayNotHasKey($usertodeleted->id, $DB->get_records_sql($sqlor, $sqldataor->get_params()));
+    }
+
+    /**
+     * Helper to create and save a course_completed condition record for build_sql_data tests.
+     *
+     * @param rule $rule
+     * @param int $courseid
+     * @param int $operator
+     * @param int $timecompleted
+     * @return condition
+     */
+    protected function make_course_completed_condition(
+        rule $rule,
+        int $courseid,
+        int $operator = course_completed::OPERATOR_ANY,
+        int $timecompleted = 0
+    ): condition {
+        $instance = course_completed::get_instance(0, (object)['ruleid' => $rule->get('id'), 'sortorder' => 1]);
+        $instance->set_config_data([
+            'courseid'      => $courseid,
+            'operator'      => $operator,
+            'timecompleted' => $timecompleted,
+        ]);
+        $instance->get_record()->save();
+        return $instance->get_record();
+    }
+
+    /**
+     * Multiple OPERATOR_ANY course_completed conditions under OR are merged into a single
+     * EXISTS subquery — no cross-product JOINs.
+     */
+    public function test_build_sql_data_merges_course_completed_under_or(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $now = time();
+        $studentrole = $DB->get_record('role', ['shortname' => 'student']);
+        $cohort = $this->getDataGenerator()->create_cohort();
+
+        $rule = new rule(0, (object)[
+            'name'     => 'Merge OR rule',
+            'cohortid' => $cohort->id,
+            'operator' => rule_manager::CONDITIONS_OPERATOR_OR,
+        ]);
+        $rule->save();
+
+        $course1 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $course2 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $course3 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+
+        // user1 completed course1, user2 completed course2, user3 completed none.
+        $user1 = $this->getDataGenerator()->create_user();
+        $user2 = $this->getDataGenerator()->create_user();
+        $user3 = $this->getDataGenerator()->create_user();
+
+        $this->getDataGenerator()->enrol_user($user1->id, $course1->id, $studentrole->id);
+        $this->getDataGenerator()->enrol_user($user2->id, $course2->id, $studentrole->id);
+
+        (new \completion_completion(['userid' => $user1->id, 'course' => $course1->id]))->mark_complete($now);
+        (new \completion_completion(['userid' => $user2->id, 'course' => $course2->id]))->mark_complete($now);
+
+        $conditions = [
+            $this->make_course_completed_condition($rule, $course1->id),
+            $this->make_course_completed_condition($rule, $course2->id),
+            $this->make_course_completed_condition($rule, $course3->id),
+        ];
+
+        $sql = condition_manager::build_sql_data($conditions, rule_manager::CONDITIONS_OPERATOR_OR);
+
+        // Merged path: no JOINs, a single EXISTS in the WHERE.
+        $this->assertEmpty($sql->get_join(), 'Merged OR conditions should produce no JOINs');
+        $this->assertStringContainsStringIgnoringCase('EXISTS', $sql->get_where());
+
+        // Correctness: user1 and user2 match (any completion), user3 does not.
+        $basesql = "SELECT DISTINCT u.id FROM {user} u {$sql->get_join()} WHERE {$sql->get_where()}";
+        $rows = $DB->get_records_sql($basesql, $sql->get_params());
+        $this->assertArrayHasKey($user1->id, $rows);
+        $this->assertArrayHasKey($user2->id, $rows);
+        $this->assertArrayNotHasKey($user3->id, $rows);
+    }
+
+    /**
+     * Multiple course_completed conditions under AND are NOT merged — each requires its
+     * own JOIN to enforce that the user completed every listed course.
+     */
+    public function test_build_sql_data_does_not_merge_course_completed_under_and(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $now = time();
+        $studentrole = $DB->get_record('role', ['shortname' => 'student']);
+        $cohort = $this->getDataGenerator()->create_cohort();
+
+        $rule = new rule(0, (object)[
+            'name'     => 'No-merge AND rule',
+            'cohortid' => $cohort->id,
+            'operator' => rule_manager::CONDITIONS_OPERATOR_AND,
+        ]);
+        $rule->save();
+
+        $course1 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $course2 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+
+        // user1 completed both courses, user2 completed only course1.
+        $user1 = $this->getDataGenerator()->create_user();
+        $user2 = $this->getDataGenerator()->create_user();
+
+        $this->getDataGenerator()->enrol_user($user1->id, $course1->id, $studentrole->id);
+        $this->getDataGenerator()->enrol_user($user1->id, $course2->id, $studentrole->id);
+        $this->getDataGenerator()->enrol_user($user2->id, $course1->id, $studentrole->id);
+
+        (new \completion_completion(['userid' => $user1->id, 'course' => $course1->id]))->mark_complete($now);
+        (new \completion_completion(['userid' => $user1->id, 'course' => $course2->id]))->mark_complete($now);
+        (new \completion_completion(['userid' => $user2->id, 'course' => $course1->id]))->mark_complete($now);
+
+        $conditions = [
+            $this->make_course_completed_condition($rule, $course1->id),
+            $this->make_course_completed_condition($rule, $course2->id),
+        ];
+
+        $sql = condition_manager::build_sql_data($conditions, rule_manager::CONDITIONS_OPERATOR_AND);
+
+        // AND path: separate JOINs retained, no EXISTS.
+        $this->assertNotEmpty($sql->get_join(), 'AND conditions should still use JOINs');
+        $this->assertStringNotContainsStringIgnoringCase('EXISTS', $sql->get_where());
+
+        // Correctness: only user1 completed both courses.
+        $basesql = "SELECT DISTINCT u.id FROM {user} u {$sql->get_join()} WHERE {$sql->get_where()}";
+        $rows = $DB->get_records_sql($basesql, $sql->get_params());
+        $this->assertArrayHasKey($user1->id, $rows);
+        $this->assertArrayNotHasKey($user2->id, $rows);
+    }
+
+    /**
+     * A single course_completed condition under OR is not merged (no benefit) and falls
+     * back to the regular JOIN path.
+     */
+    public function test_build_sql_data_singleton_course_completed_uses_join(): void {
+        $this->resetAfterTest();
+
+        $cohort = $this->getDataGenerator()->create_cohort();
+        $rule = new rule(0, (object)[
+            'name'     => 'Singleton OR rule',
+            'cohortid' => $cohort->id,
+            'operator' => rule_manager::CONDITIONS_OPERATOR_OR,
+        ]);
+        $rule->save();
+
+        $course = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $conditions = [$this->make_course_completed_condition($rule, $course->id)];
+
+        $sql = condition_manager::build_sql_data($conditions, rule_manager::CONDITIONS_OPERATOR_OR);
+
+        // Singleton falls back to regular get_sql() which uses a JOIN, not EXISTS.
+        $this->assertNotEmpty($sql->get_join());
+        $this->assertStringNotContainsStringIgnoringCase('EXISTS', $sql->get_where());
+    }
+
+    /**
+     * Date-bounded (OPERATOR_BEFORE/AFTER) course_completed conditions are not merged
+     * even under OR — they stay as individual JOINs.
+     */
+    public function test_build_sql_data_does_not_merge_date_bounded_conditions(): void {
+        $this->resetAfterTest();
+
+        $cohort = $this->getDataGenerator()->create_cohort();
+        $rule = new rule(0, (object)[
+            'name'     => 'Date-bounded OR rule',
+            'cohortid' => $cohort->id,
+            'operator' => rule_manager::CONDITIONS_OPERATOR_OR,
+        ]);
+        $rule->save();
+
+        $course1 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $course2 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+
+        $conditions = [
+            $this->make_course_completed_condition($rule, $course1->id, course_completed::OPERATOR_BEFORE, time()),
+            $this->make_course_completed_condition($rule, $course2->id, course_completed::OPERATOR_AFTER, time()),
+        ];
+
+        $sql = condition_manager::build_sql_data($conditions, rule_manager::CONDITIONS_OPERATOR_OR);
+
+        // Date-bounded conditions cannot be merged — each uses its own JOIN.
+        $this->assertNotEmpty($sql->get_join());
+        $this->assertStringNotContainsStringIgnoringCase('EXISTS', $sql->get_where());
+        $this->assertStringContainsString('OR', $sql->get_where());
+    }
+
+    /**
+     * Mixed OPERATOR_ANY (mergeable) and OPERATOR_BEFORE (not mergeable) conditions
+     * under OR: the ANY group is merged into EXISTS; the BEFORE stays as a JOIN.
+     */
+    public function test_build_sql_data_mixed_mergeable_and_date_bounded(): void {
+        $this->resetAfterTest();
+
+        $cohort = $this->getDataGenerator()->create_cohort();
+        $rule = new rule(0, (object)[
+            'name'     => 'Mixed OR rule',
+            'cohortid' => $cohort->id,
+            'operator' => rule_manager::CONDITIONS_OPERATOR_OR,
+        ]);
+        $rule->save();
+
+        $course1 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $course2 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $course3 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+
+        $conditions = [
+            $this->make_course_completed_condition($rule, $course1->id),
+            $this->make_course_completed_condition($rule, $course2->id),
+            $this->make_course_completed_condition($rule, $course3->id, course_completed::OPERATOR_BEFORE, time()),
+        ];
+
+        $sql = condition_manager::build_sql_data($conditions, rule_manager::CONDITIONS_OPERATOR_OR);
+
+        // The two OPERATOR_ANY conditions are merged (EXISTS); OPERATOR_BEFORE keeps its JOIN.
+        $this->assertStringContainsStringIgnoringCase('EXISTS', $sql->get_where());
+        $this->assertNotEmpty($sql->get_join(), 'OPERATOR_BEFORE condition should still produce a JOIN');
     }
 }

@@ -224,6 +224,8 @@ class condition_manager {
         $join = '';
         $params = [];
 
+        // Instantiate all conditions first, failing fast on any broken condition.
+        $instances = [];
         foreach ($conditions as $condition) {
             if (!$condition instanceof condition) {
                 continue;
@@ -235,22 +237,50 @@ class condition_manager {
                 return new condition_sql($join, '1=0', $params);
             }
 
-            $sqldata = $instance->get_sql();
+            $instances[] = $instance;
+        }
 
+        // Under OR rules, group same-class merge-capable instances together so they
+        // can be collapsed into a single optimised subquery instead of N JOINs.
+        $mergegroups = [];
+        $regularinstances = [];
+
+        foreach ($instances as $instance) {
+            if ($operator == rule_manager::CONDITIONS_OPERATOR_OR && $instance->can_merge()) {
+                $mergegroups[get_class($instance)][] = $instance;
+            } else {
+                $regularinstances[] = $instance;
+            }
+        }
+
+        // Helper to append one condition_sql to the running join/where/params.
+        $append = function (condition_sql $sqldata) use (&$join, &$where, &$params, $operator): void {
             if (!empty($sqldata->get_join())) {
                 $join .= ' ' . $sqldata->get_join();
             }
-
             if (!empty($sqldata->get_where())) {
                 if (!empty($where)) {
                     $where .= ' ' . rule_manager::get_logical_operator_text($operator);
                 }
                 $where .= ' (' . $sqldata->get_where() . ')';
             }
-
             if (!empty($sqldata->get_params())) {
                 $params += $sqldata->get_params();
             }
+        };
+
+        // Process merge groups (always at least 2 instances; singletons fall through to regular).
+        foreach ($mergegroups as $class => $groupinstances) {
+            if (count($groupinstances) === 1) {
+                $regularinstances[] = reset($groupinstances);
+            } else {
+                $append($class::build_merged_sql($groupinstances, $operator));
+            }
+        }
+
+        // Process remaining conditions individually.
+        foreach ($regularinstances as $instance) {
+            $append($instance->get_sql());
         }
 
         // If we have conditions let's wrap them all in one big condition.
