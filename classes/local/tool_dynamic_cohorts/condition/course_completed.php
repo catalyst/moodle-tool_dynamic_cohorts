@@ -127,6 +127,24 @@ class course_completed extends condition_base {
     }
 
     /**
+     * Gets required config data from submitted condition form data.
+     *
+     * @param \stdClass $formdata Form data generated via $mform->get_data()
+     * @return array
+     */
+    public static function retrieve_config_data(\stdClass $formdata): array {
+        $configdata = parent::retrieve_config_data($formdata);
+
+        // When operator is "Any", the timecompleted field is hidden in the form but still submitted
+        // with the current timestamp as its default value. Reset it to 0 so it is not used in queries.
+        if (isset($configdata['operator']) && (int)$configdata['operator'] === self::OPERATOR_ANY) {
+            $configdata['timecompleted'] = 0;
+        }
+
+        return $configdata;
+    }
+
+    /**
      * Gets configured completion time.
      *
      * @return int
