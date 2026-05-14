@@ -262,4 +262,86 @@ final class course_completed_test extends \advanced_testcase {
     public function test_get_events(): void {
         $this->assertEquals([], $this->get_condition()->get_events());
     }
+
+    /**
+     * Test that retrieve_config_data resets timecompleted to 0 when operator is OPERATOR_ANY.
+     */
+    public function test_retrieving_configdata_resets_timecompleted_for_operator_any(): void {
+        // Simulate form submission where the hidden timecompleted field carries a real timestamp.
+        $formdata = (object)[
+            'courseid' => 5,
+            'operator' => course_completed::OPERATOR_ANY,
+            'timecompleted' => 1778644800, // Non-zero timestamp that should be zeroed out.
+            'ruleid' => 1,
+            'sortorder' => 0,
+        ];
+
+        $actual = $this->get_condition()::retrieve_config_data($formdata);
+
+        $this->assertSame(0, $actual['timecompleted']);
+        $this->assertSame(course_completed::OPERATOR_ANY, $actual['operator']);
+        $this->assertSame(5, $actual['courseid']);
+    }
+
+    /**
+     * Test that retrieve_config_data preserves timecompleted for OPERATOR_BEFORE and OPERATOR_AFTER.
+     */
+    public function test_retrieving_configdata_preserves_timecompleted_for_dated_operators(): void {
+        $timestamp = 1778644800;
+
+        foreach ([course_completed::OPERATOR_BEFORE, course_completed::OPERATOR_AFTER] as $operator) {
+            $formdata = (object)[
+                'courseid' => 5,
+                'operator' => $operator,
+                'timecompleted' => $timestamp,
+                'ruleid' => 1,
+                'sortorder' => 0,
+            ];
+
+            $actual = $this->get_condition()::retrieve_config_data($formdata);
+
+            $this->assertSame($timestamp, $actual['timecompleted']);
+        }
+    }
+
+    /**
+     * Test that get_sql with OPERATOR_ANY returns all completions regardless of the stored timecompleted value.
+     */
+    public function test_get_sql_operator_any_ignores_timecompleted(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $now = time();
+
+        $studentrole = $DB->get_record('role', ['shortname' => 'student']);
+        $course = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+
+        $user1 = $this->getDataGenerator()->create_user();
+        $user2 = $this->getDataGenerator()->create_user();
+
+        $this->getDataGenerator()->enrol_user($user1->id, $course->id, $studentrole->id);
+        $this->getDataGenerator()->enrol_user($user2->id, $course->id, $studentrole->id);
+
+        // User1 completed a week ago, user2 completed a week in the future.
+        $completionuser1 = new \completion_completion(['userid' => $user1->id, 'course' => $course->id]);
+        $completionuser1->mark_complete($now - WEEKSECS);
+
+        $completionuser2 = new \completion_completion(['userid' => $user2->id, 'course' => $course->id]);
+        $completionuser2->mark_complete($now + WEEKSECS);
+
+        $condition = $this->get_condition([
+            'courseid' => $course->id,
+            'operator' => course_completed::OPERATOR_ANY,
+            'timecompleted' => $now,
+        ]);
+
+        $result = $condition->get_sql();
+        $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
+        $actual = $DB->get_records_sql($sql, $result->get_params());
+
+        $this->assertCount(2, $actual);
+        $this->assertArrayHasKey($user1->id, $actual);
+        $this->assertArrayHasKey($user2->id, $actual);
+    }
 }
