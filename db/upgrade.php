@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
+use tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\course_completion;
+
 /**
  * Upgrade hook.
  *
@@ -56,6 +58,71 @@ function xmldb_tool_dynamic_cohorts_upgrade($oldversion): bool {
 
         // Dynamic_cohorts savepoint reached.
         upgrade_plugin_savepoint(true, 2024091300, 'tool', 'dynamic_cohorts');
+    }
+
+    if ($oldversion < 2026052600) {
+        // Migrate legacy course completion conditions to the new course completion class.
+        // This script does not automatically collapse legacy completion condition chains.
+
+        $legacycompleted = 'tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\course_completed';
+        $legacynotcompleted = 'tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\course_not_completed';
+
+        [$insql, $inparams] = $DB->get_in_or_equal([$legacycompleted, $legacynotcompleted], SQL_PARAMS_NAMED);
+        $records = $DB->get_recordset_select(
+            'tool_dynamic_cohorts_c',
+            "classname $insql",
+            $inparams,
+            '',
+            'id, classname, configdata'
+        );
+
+        foreach ($records as $record) {
+            $oldconfig = json_decode($record->configdata, true);
+
+            // Skip migration for invalid records. They will need to be fixed manually.
+            if (!is_array($oldconfig)) {
+                continue;
+            }
+
+            $courseid = (int) ($oldconfig['courseid'] ?? 0);
+            if (empty($courseid)) {
+                continue;
+            }
+
+            if ($record->classname === $legacycompleted) {
+                $periodoperator = match ((int) ($oldconfig['operator'] ?? 1)) {
+                    1 => course_completion::PERIOD_ANY,
+                    2 => course_completion::PERIOD_BEFORE,
+                    3 => course_completion::PERIOD_AFTER,
+                    default => course_completion::PERIOD_ANY,
+                };
+
+                $newconfig = [
+                    'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
+                    'selectionoperator' => course_completion::SELECTION_ALL,
+                    'courseids' => [$courseid],
+                    'periodoperator' => $periodoperator,
+                    'timecompleted' => (int) ($oldconfig['timecompleted'] ?? 0),
+                ];
+            } else {
+                $newconfig = [
+                    'completionoperator' => course_completion::OPERATOR_HAVE_NOT_COMPLETED,
+                    'selectionoperator' => course_completion::SELECTION_ANY,
+                    'courseids' => [$courseid],
+                    'periodoperator' => course_completion::PERIOD_ANY,
+                    'timecompleted' => 0,
+                ];
+            }
+
+            $DB->update_record('tool_dynamic_cohorts_c', (object) [
+                'id' => $record->id,
+                'classname' => course_completion::class,
+                'configdata' => json_encode($newconfig),
+            ]);
+        }
+        $records->close();
+
+        upgrade_plugin_savepoint(true, 2026052600, 'tool', 'dynamic_cohorts');
     }
 
     return true;
