@@ -108,6 +108,17 @@ class course_completion extends condition_base {
     }
 
     #[\Override]
+    public static function retrieve_config_data(\stdClass $formdata): array {
+        $configdata = parent::retrieve_config_data($formdata);
+
+        if ((int) ($configdata['periodoperator'] ?? self::PERIOD_ANY) === self::PERIOD_ANY) {
+            $configdata['timecompleted'] = 0;
+        }
+
+        return $configdata;
+    }
+
+    #[\Override]
     public function config_form_add(\MoodleQuickForm $mform): void {
         $operatorgroup = [];
         $operatorgroup[] = $mform->createElement(
@@ -141,7 +152,7 @@ class course_completion extends condition_base {
             $this->get_period_operators()
         );
 
-        $mform->addElement('date_time_selector', 'timecompleted');
+        $mform->addElement('date_time_selector', 'timecompleted', '', ['defaulttime' => usergetmidnight(time())]);
         $mform->hideIf('timecompleted', 'periodoperator', 'eq', self::PERIOD_ANY);
         $mform->setDefault('timecompleted', usergetmidnight(time()));
     }
