@@ -66,6 +66,26 @@ final class course_completion_test extends \advanced_testcase {
             'timecompleted' => 777777,
         ];
         $this->assertEquals($expected, $actual);
+
+        $formdata = (object) [
+            'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [1, 2],
+            'periodoperator' => course_completion::PERIOD_ANY,
+            'timecompleted' => 777777,
+            'ruleid' => 1,
+            'sortorder' => 0,
+        ];
+
+        $actual = $this->get_condition()::retrieve_config_data($formdata);
+        $expected = [
+            'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [1, 2],
+            'periodoperator' => course_completion::PERIOD_ANY,
+            'timecompleted' => 0,
+        ];
+        $this->assertEquals($expected, $actual);
     }
 
     /**
