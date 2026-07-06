@@ -71,6 +71,26 @@ class course_completion extends condition_base {
     public const PERIOD_AFTER = 3;
 
     /**
+     * Broken status for a condition that is OK.
+     */
+    public const BROKEN_STATUS_OK = 0;
+
+    /**
+     * Broken status for a condition with malformed configuration.
+     */
+    public const BROKEN_STATUS_MALFORMED = 1;
+
+    /**
+     * Broken status for a condition with a missing course.
+     */
+    public const BROKEN_STATUS_MISSING_COURSE = 2;
+
+    /**
+     * Broken status for a condition with course completion disabled.
+     */
+    public const BROKEN_STATUS_COMPLETION_DISABLED = 3;
+
+    /**
      * Gets completion operators.
      *
      * @return array
@@ -206,12 +226,6 @@ class course_completion extends condition_base {
                     'target' => '_blank',
                     'rel' => 'noopener noreferrer',
                 ]);
-            } else {
-                $badges[] = html_writer::tag(
-                    'span',
-                    get_string('missingcourse', 'tool_dynamic_cohorts') . " ($courseid)",
-                    ['class' => 'badge badge-secondary']
-                );
             }
         }
 
@@ -290,66 +304,69 @@ class course_completion extends condition_base {
         return new condition_sql($join, $where, $params);
     }
 
-    #[\Override]
-    public function is_broken(): bool {
+    /**
+     * Returns the status code indicating the condition configuration state.
+     *
+     * @return int
+     */
+    public function get_broken_status(): int {
+        global $DB;
+
+        // Empty data indicates a fresh draft.
         $data = $this->get_config_data();
         if (empty($data)) {
-            return false;
+            return self::BROKEN_STATUS_OK;
         }
 
         if (!array_key_exists($this->get_completion_operator_value(), $this->get_completion_operators())) {
-            return true;
+            return self::BROKEN_STATUS_MALFORMED;
         }
 
         if (!array_key_exists($this->get_selection_operator_value(), $this->get_selection_operators())) {
-            return true;
+            return self::BROKEN_STATUS_MALFORMED;
         }
 
         if (!array_key_exists($this->get_period_operator_value(), $this->get_period_operators())) {
-            return true;
+            return self::BROKEN_STATUS_MALFORMED;
         }
 
-        if (empty($this->get_courseids_value())) {
-            return true;
+        $courseids = $this->get_courseids_value();
+        if (empty($courseids)) {
+            return self::BROKEN_STATUS_MALFORMED;
         }
 
-        return $this->get_invalid_course_config_reason() !== null;
-    }
-
-    /**
-     * Human readable description of the broken condition.
-     *
-     * @return string
-     */
-    public function get_broken_description(): string {
-        if (($reason = $this->get_invalid_course_config_reason()) !== null) {
-            return $reason;
-        }
-
-        return parent::get_broken_description();
-    }
-
-    /**
-     * Gets invalid course configuration reason.
-     *
-     * @return string|null
-     */
-    protected function get_invalid_course_config_reason(): ?string {
-        global $DB;
-
-        foreach ($this->get_courseids_value() as $courseid) {
-            $course = $DB->get_record('course', ['id' => $courseid]);
-            if (!$course) {
-                return get_string('missingcourse', 'tool_dynamic_cohorts');
+        $courses = $DB->get_records_list('course', 'id', $courseids);
+        foreach ($courseids as $courseid) {
+            if (!isset($courses[$courseid])) {
+                return self::BROKEN_STATUS_MISSING_COURSE;
             }
 
-            $completion = new completion_info($course);
+            $completion = new completion_info($courses[$courseid]);
             if (!$completion->is_enabled()) {
-                return get_string('completionisdisabled', 'tool_dynamic_cohorts');
+                return self::BROKEN_STATUS_COMPLETION_DISABLED;
             }
         }
 
-        return null;
+        return self::BROKEN_STATUS_OK;
+    }
+
+    #[\Override]
+    public function is_broken(): bool {
+        return $this->get_broken_status() !== self::BROKEN_STATUS_OK;
+    }
+
+    #[\Override]
+    public function get_broken_description(): string {
+        return match ($this->get_broken_status()) {
+            self::BROKEN_STATUS_MALFORMED =>
+            get_string('condition:course_completion:malformed', 'tool_dynamic_cohorts'),
+
+            self::BROKEN_STATUS_MISSING_COURSE =>
+            get_string('condition:course_completion:missingcourse', 'tool_dynamic_cohorts'),
+
+            self::BROKEN_STATUS_COMPLETION_DISABLED =>
+            get_string('condition:course_completion:completionisdisabled', 'tool_dynamic_cohorts'),
+        };
     }
 
     /**

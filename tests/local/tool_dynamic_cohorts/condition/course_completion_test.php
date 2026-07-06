@@ -144,7 +144,8 @@ final class course_completion_test extends \advanced_testcase {
             'timecompleted' => 0,
         ]);
         $description = $condition->get_config_description();
-        $this->assertStringContainsString('Missing course (999999)', $description);
+        $this->assertStringContainsString($course1->fullname, $description);
+        $this->assertStringNotContainsString('999999', $description);
     }
 
     /**
@@ -172,7 +173,10 @@ final class course_completion_test extends \advanced_testcase {
             'timecompleted' => 0,
         ]);
         $this->assertTrue($condition->is_broken());
-        $this->assertSame('Missing course', $condition->get_broken_description());
+        $this->assertSame(
+            get_string('condition:course_completion:missingcourse', 'tool_dynamic_cohorts'),
+            $condition->get_broken_description()
+        );
 
         // Completion is disabled.
         $condition = $this->get_condition([
@@ -183,7 +187,10 @@ final class course_completion_test extends \advanced_testcase {
             'timecompleted' => 0,
         ]);
         $this->assertTrue($condition->is_broken());
-        $this->assertSame('Completion is disabled for configured course', $condition->get_broken_description());
+        $this->assertSame(
+            get_string('condition:course_completion:completionisdisabled', 'tool_dynamic_cohorts'),
+            $condition->get_broken_description()
+        );
 
         // Completion is enabled.
         $DB->set_field('course', 'enablecompletion', 1, ['id' => $course->id]);
@@ -205,6 +212,10 @@ final class course_completion_test extends \advanced_testcase {
             'timecompleted' => 0,
         ]);
         $this->assertTrue($condition->is_broken());
+        $this->assertSame(
+            get_string('condition:course_completion:malformed', 'tool_dynamic_cohorts'),
+            $condition->get_broken_description()
+        );
 
         // Invalid selection operator.
         $condition = $this->get_condition([
@@ -215,6 +226,10 @@ final class course_completion_test extends \advanced_testcase {
             'timecompleted' => 0,
         ]);
         $this->assertTrue($condition->is_broken());
+        $this->assertSame(
+            get_string('condition:course_completion:malformed', 'tool_dynamic_cohorts'),
+            $condition->get_broken_description()
+        );
 
         // Invalid period operator.
         $condition = $this->get_condition([
@@ -225,6 +240,10 @@ final class course_completion_test extends \advanced_testcase {
             'timecompleted' => 0,
         ]);
         $this->assertTrue($condition->is_broken());
+        $this->assertSame(
+            get_string('condition:course_completion:malformed', 'tool_dynamic_cohorts'),
+            $condition->get_broken_description()
+        );
     }
 
     /**
@@ -327,7 +346,7 @@ final class course_completion_test extends \advanced_testcase {
         $this->assertArrayNotHasKey($userone->id, $actual);
         $this->assertArrayNotHasKey($usernone->id, $actual);
 
-        // Date filtering with after should only count completions after now.
+        // Date filtering by completed any should only count completions after now.
         $condition = $this->get_condition([
             'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
             'selectionoperator' => course_completion::SELECTION_ANY,
@@ -342,7 +361,7 @@ final class course_completion_test extends \advanced_testcase {
         $this->assertArrayNotHasKey($userone->id, $actual);
         $this->assertArrayNotHasKey($usernone->id, $actual);
 
-        // Date filtering with "have not completed" and after date.
+        // Date filtering by not completed any should exclude users with completions after now.
         $condition = $this->get_condition([
             'completionoperator' => course_completion::OPERATOR_HAVE_NOT_COMPLETED,
             'selectionoperator' => course_completion::SELECTION_ANY,
