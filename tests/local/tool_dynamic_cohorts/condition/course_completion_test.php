@@ -135,6 +135,16 @@ final class course_completion_test extends \advanced_testcase {
         $this->assertStringContainsString($course2->fullname, $description);
         $this->assertStringContainsString('/course/view.php?id=' . $course1->id, $description);
         $this->assertStringContainsString('/course/view.php?id=' . $course2->id, $description);
+
+        $condition = $this->get_condition([
+            'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [$course1->id, 999999],
+            'periodoperator' => course_completion::PERIOD_ANY,
+            'timecompleted' => 0,
+        ]);
+        $description = $condition->get_config_description();
+        $this->assertStringContainsString('Missing course (999999)', $description);
     }
 
     /**
@@ -185,6 +195,36 @@ final class course_completion_test extends \advanced_testcase {
             'timecompleted' => 0,
         ]);
         $this->assertFalse($condition->is_broken());
+
+        // Invalid completion operator.
+        $condition = $this->get_condition([
+            'completionoperator' => 999,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [$course->id],
+            'periodoperator' => course_completion::PERIOD_ANY,
+            'timecompleted' => 0,
+        ]);
+        $this->assertTrue($condition->is_broken());
+
+        // Invalid selection operator.
+        $condition = $this->get_condition([
+            'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
+            'selectionoperator' => 999,
+            'courseids' => [$course->id],
+            'periodoperator' => course_completion::PERIOD_ANY,
+            'timecompleted' => 0,
+        ]);
+        $this->assertTrue($condition->is_broken());
+
+        // Invalid period operator.
+        $condition = $this->get_condition([
+            'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [$course->id],
+            'periodoperator' => 999,
+            'timecompleted' => 0,
+        ]);
+        $this->assertTrue($condition->is_broken());
     }
 
     /**
@@ -286,6 +326,36 @@ final class course_completion_test extends \advanced_testcase {
         $this->assertArrayNotHasKey($userall->id, $actual);
         $this->assertArrayNotHasKey($userone->id, $actual);
         $this->assertArrayNotHasKey($usernone->id, $actual);
+
+        // Date filtering with after should only count completions after now.
+        $condition = $this->get_condition([
+            'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [$course1->id, $course2->id],
+            'periodoperator' => course_completion::PERIOD_AFTER,
+            'timecompleted' => $now,
+        ]);
+        $result = $condition->get_sql();
+        $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
+        $actual = $DB->get_records_sql($sql, $result->get_params());
+        $this->assertArrayHasKey($userall->id, $actual);
+        $this->assertArrayNotHasKey($userone->id, $actual);
+        $this->assertArrayNotHasKey($usernone->id, $actual);
+
+        // Date filtering with "have not completed" and after date.
+        $condition = $this->get_condition([
+            'completionoperator' => course_completion::OPERATOR_HAVE_NOT_COMPLETED,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [$course1->id, $course2->id],
+            'periodoperator' => course_completion::PERIOD_AFTER,
+            'timecompleted' => $now,
+        ]);
+        $result = $condition->get_sql();
+        $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
+        $actual = $DB->get_records_sql($sql, $result->get_params());
+        $this->assertArrayNotHasKey($userall->id, $actual);
+        $this->assertArrayHasKey($userone->id, $actual);
+        $this->assertArrayHasKey($usernone->id, $actual);
     }
 
     /**

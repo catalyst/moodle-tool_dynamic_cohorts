@@ -63,7 +63,6 @@ function xmldb_tool_dynamic_cohorts_upgrade($oldversion): bool {
     if ($oldversion < 2026052600) {
         // Migrate legacy course completion conditions to the new course completion class.
         // This script does not automatically collapse legacy completion condition chains.
-
         $legacycompleted = 'tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\course_completed';
         $legacynotcompleted = 'tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\course_not_completed';
 

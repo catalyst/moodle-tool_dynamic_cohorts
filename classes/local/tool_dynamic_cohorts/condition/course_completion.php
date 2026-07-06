@@ -166,15 +166,15 @@ class course_completion extends condition_base {
         }
 
         if (!array_key_exists((int) ($data['completionoperator'] ?? 0), $this->get_completion_operators())) {
-            $errors['completionoperator'] = get_string('invaliddata');
+            $errors['completionoperator'] = get_string('invaliddata', 'error');
         }
 
         if (!array_key_exists((int) ($data['selectionoperator'] ?? 0), $this->get_selection_operators())) {
-            $errors['selectionoperator'] = get_string('invaliddata');
+            $errors['selectionoperator'] = get_string('invaliddata', 'error');
         }
 
         if (!array_key_exists((int) ($data['periodoperator'] ?? 0), $this->get_period_operators())) {
-            $errors['periodoperator'] = get_string('invaliddata');
+            $errors['periodoperator'] = get_string('invaliddata', 'error');
         }
 
         return $errors;
@@ -207,7 +207,11 @@ class course_completion extends condition_base {
                     'rel' => 'noopener noreferrer',
                 ]);
             } else {
-                $badges[] = html_writer::tag('span', $coursename, ['class' => 'badge badge-secondary']);
+                $badges[] = html_writer::tag(
+                    'span',
+                    get_string('missingcourse', 'tool_dynamic_cohorts') . " ($courseid)",
+                    ['class' => 'badge badge-secondary']
+                );
             }
         }
 
@@ -288,8 +292,6 @@ class course_completion extends condition_base {
 
     #[\Override]
     public function is_broken(): bool {
-        global $DB;
-
         $data = $this->get_config_data();
         if (empty($data)) {
             return false;
@@ -311,19 +313,7 @@ class course_completion extends condition_base {
             return true;
         }
 
-        foreach ($this->get_courseids_value() as $courseid) {
-            $course = $DB->get_record('course', ['id' => $courseid]);
-            if (!$course) {
-                return true;
-            }
-
-            $completion = new completion_info($course);
-            if (!$completion->is_enabled()) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->get_invalid_course_config_reason() !== null;
     }
 
     /**
@@ -332,6 +322,19 @@ class course_completion extends condition_base {
      * @return string
      */
     public function get_broken_description(): string {
+        if (($reason = $this->get_invalid_course_config_reason()) !== null) {
+            return $reason;
+        }
+
+        return parent::get_broken_description();
+    }
+
+    /**
+     * Gets invalid course configuration reason.
+     *
+     * @return string|null
+     */
+    protected function get_invalid_course_config_reason(): ?string {
         global $DB;
 
         foreach ($this->get_courseids_value() as $courseid) {
@@ -346,7 +349,7 @@ class course_completion extends condition_base {
             }
         }
 
-        return parent::get_broken_description();
+        return null;
     }
 
     /**
