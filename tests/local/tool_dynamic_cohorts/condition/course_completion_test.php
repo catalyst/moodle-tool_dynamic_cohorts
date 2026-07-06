@@ -35,7 +35,7 @@ final class course_completion_test extends \advanced_testcase {
      * @return condition_base
      */
     protected function get_condition(array $configdata = []): condition_base {
-        $condition = condition_base::get_instance(0, (object)[
+        $condition = condition_base::get_instance(0, (object) [
             'classname' => course_completion::class,
         ]);
         $condition->set_config_data($configdata);
@@ -47,7 +47,7 @@ final class course_completion_test extends \advanced_testcase {
      * Test retrieving of config data.
      */
     public function test_retrieving_configdata(): void {
-        $formdata = (object)[
+        $formdata = (object) [
             'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
             'selectionoperator' => course_completion::SELECTION_ANY,
             'courseids' => [1, 2],
@@ -113,10 +113,36 @@ final class course_completion_test extends \advanced_testcase {
     }
 
     /**
+     * Test form validation rejects unavailable courses.
+     */
+    public function test_config_form_validate(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $enabledcourse = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $disabledcourse = $this->getDataGenerator()->create_course();
+        $condition = $this->get_condition();
+
+        $errors = $condition->config_form_validate([
+            'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [$enabledcourse->id, $disabledcourse->id, 999999],
+            'periodoperator' => course_completion::PERIOD_ANY,
+        ]);
+
+        $this->assertArrayHasKey('courseids', $errors);
+        $this->assertStringContainsString($disabledcourse->fullname, $errors['courseids']);
+        $this->assertStringContainsString('/course/view.php?id=' . $disabledcourse->id, $errors['courseids']);
+        $this->assertStringContainsString('(course id ' . $disabledcourse->id . ')', $errors['courseids']);
+        $this->assertStringContainsString('999999', $errors['courseids']);
+    }
+
+    /**
      * Test getting config description.
      */
     public function test_config_description(): void {
         $this->resetAfterTest();
+        $this->setAdminUser();
 
         $course1 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
         $course2 = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
@@ -135,6 +161,18 @@ final class course_completion_test extends \advanced_testcase {
         $this->assertStringContainsString($course2->fullname, $description);
         $this->assertStringContainsString('/course/view.php?id=' . $course1->id, $description);
         $this->assertStringContainsString('/course/view.php?id=' . $course2->id, $description);
+
+        $condition = $this->get_condition([
+            'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [$course1->id, 999999],
+            'periodoperator' => course_completion::PERIOD_ANY,
+            'timecompleted' => 0,
+        ]);
+        $description = $condition->get_config_description();
+        $this->assertStringContainsString($course1->fullname, $description);
+        $this->assertStringContainsString('999999', $description);
+        $this->assertStringNotContainsString('/course/view.php?id=999999', $description);
     }
 
     /**
@@ -144,10 +182,11 @@ final class course_completion_test extends \advanced_testcase {
         global $DB;
 
         $this->resetAfterTest();
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course();
 
-        $condition = condition_base::get_instance(0, (object)[
+        $condition = condition_base::get_instance(0, (object) [
             'classname' => '\\tool_dynamic_cohorts\\local\\tool_dynamic_cohorts\\condition\\course_completion',
         ]);
 
@@ -162,7 +201,14 @@ final class course_completion_test extends \advanced_testcase {
             'timecompleted' => 0,
         ]);
         $this->assertTrue($condition->is_broken());
-        $this->assertSame('Missing course', $condition->get_broken_description());
+        $this->assertStringContainsString(
+            get_string(
+                'condition:course_completion:missingcourse',
+                'tool_dynamic_cohorts',
+                (object) ['courseid' => 7777]
+            ),
+            $condition->get_broken_description()
+        );
 
         // Completion is disabled.
         $condition = $this->get_condition([
@@ -173,7 +219,31 @@ final class course_completion_test extends \advanced_testcase {
             'timecompleted' => 0,
         ]);
         $this->assertTrue($condition->is_broken());
-        $this->assertSame('Completion is disabled for configured course', $condition->get_broken_description());
+        $description = $condition->get_broken_description();
+        $this->assertStringContainsString($course->fullname, $description);
+        $this->assertStringContainsString('/course/view.php?id=' . $course->id, $description);
+        $this->assertStringContainsString('(course id ' . $course->id . ')', $description);
+
+        // Every unavailable configured course is reported.
+        $othercourse = $this->getDataGenerator()->create_course();
+        $enabledcourse = $this->getDataGenerator()->create_course(['enablecompletion' => 1]);
+        $condition = $this->get_condition([
+            'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [$course->id, 7777, $othercourse->id, $enabledcourse->id],
+            'periodoperator' => course_completion::PERIOD_ANY,
+            'timecompleted' => 0,
+        ]);
+        $description = $condition->get_broken_description();
+        $this->assertStringContainsString($course->fullname, $description);
+        $this->assertStringContainsString('/course/view.php?id=' . $course->id, $description);
+        $this->assertStringContainsString('(course id ' . $course->id . ')', $description);
+        $this->assertStringContainsString('7777', $description);
+        $this->assertStringContainsString($othercourse->fullname, $description);
+        $this->assertStringContainsString('/course/view.php?id=' . $othercourse->id, $description);
+        $this->assertStringContainsString('(course id ' . $othercourse->id . ')', $description);
+        $this->assertStringContainsString($enabledcourse->fullname, $description);
+        $this->assertStringContainsString('/course/view.php?id=' . $enabledcourse->id, $description);
 
         // Completion is enabled.
         $DB->set_field('course', 'enablecompletion', 1, ['id' => $course->id]);
@@ -185,6 +255,48 @@ final class course_completion_test extends \advanced_testcase {
             'timecompleted' => 0,
         ]);
         $this->assertFalse($condition->is_broken());
+
+        // Invalid completion operator.
+        $condition = $this->get_condition([
+            'completionoperator' => 999,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [$course->id],
+            'periodoperator' => course_completion::PERIOD_ANY,
+            'timecompleted' => 0,
+        ]);
+        $this->assertTrue($condition->is_broken());
+        $this->assertStringContainsString(
+            get_string('condition:course_completion:malformed', 'tool_dynamic_cohorts'),
+            $condition->get_broken_description()
+        );
+
+        // Invalid selection operator.
+        $condition = $this->get_condition([
+            'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
+            'selectionoperator' => 999,
+            'courseids' => [$course->id],
+            'periodoperator' => course_completion::PERIOD_ANY,
+            'timecompleted' => 0,
+        ]);
+        $this->assertTrue($condition->is_broken());
+        $this->assertStringContainsString(
+            get_string('condition:course_completion:malformed', 'tool_dynamic_cohorts'),
+            $condition->get_broken_description()
+        );
+
+        // Invalid period operator.
+        $condition = $this->get_condition([
+            'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [$course->id],
+            'periodoperator' => 999,
+            'timecompleted' => 0,
+        ]);
+        $this->assertTrue($condition->is_broken());
+        $this->assertStringContainsString(
+            get_string('condition:course_completion:malformed', 'tool_dynamic_cohorts'),
+            $condition->get_broken_description()
+        );
     }
 
     /**
@@ -286,6 +398,36 @@ final class course_completion_test extends \advanced_testcase {
         $this->assertArrayNotHasKey($userall->id, $actual);
         $this->assertArrayNotHasKey($userone->id, $actual);
         $this->assertArrayNotHasKey($usernone->id, $actual);
+
+        // Date filtering by completed any should only count completions after now.
+        $condition = $this->get_condition([
+            'completionoperator' => course_completion::OPERATOR_HAVE_COMPLETED,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [$course1->id, $course2->id],
+            'periodoperator' => course_completion::PERIOD_AFTER,
+            'timecompleted' => $now,
+        ]);
+        $result = $condition->get_sql();
+        $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
+        $actual = $DB->get_records_sql($sql, $result->get_params());
+        $this->assertArrayHasKey($userall->id, $actual);
+        $this->assertArrayNotHasKey($userone->id, $actual);
+        $this->assertArrayNotHasKey($usernone->id, $actual);
+
+        // Date filtering by not completed any should exclude users with completions after now.
+        $condition = $this->get_condition([
+            'completionoperator' => course_completion::OPERATOR_HAVE_NOT_COMPLETED,
+            'selectionoperator' => course_completion::SELECTION_ANY,
+            'courseids' => [$course1->id, $course2->id],
+            'periodoperator' => course_completion::PERIOD_AFTER,
+            'timecompleted' => $now,
+        ]);
+        $result = $condition->get_sql();
+        $sql = "SELECT u.id FROM {user} u {$result->get_join()} WHERE {$result->get_where()}";
+        $actual = $DB->get_records_sql($sql, $result->get_params());
+        $this->assertArrayNotHasKey($userall->id, $actual);
+        $this->assertArrayHasKey($userone->id, $actual);
+        $this->assertArrayHasKey($usernone->id, $actual);
     }
 
     /**

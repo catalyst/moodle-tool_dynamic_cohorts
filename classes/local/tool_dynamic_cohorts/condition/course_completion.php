@@ -71,14 +71,31 @@ class course_completion extends condition_base {
     public const PERIOD_AFTER = 3;
 
     /**
+     * Configuration error for a condition with malformed configuration.
+     */
+    public const CONFIG_ERROR_MALFORMED = 1;
+
+    /**
+     * Configuration error for a condition with a missing course.
+     */
+    public const CONFIG_ERROR_MISSING_COURSE = 2;
+
+    /**
+     * Configuration error for a condition with course completion disabled.
+     */
+    public const CONFIG_ERROR_COMPLETION_DISABLED = 3;
+
+    /**
      * Gets completion operators.
      *
      * @return array
      */
     protected function get_completion_operators(): array {
         return [
-            self::OPERATOR_HAVE_COMPLETED => get_string('condition:course_completion:have_completed', 'tool_dynamic_cohorts'),
-            self::OPERATOR_HAVE_NOT_COMPLETED => get_string('condition:course_completion:have_not_completed', 'tool_dynamic_cohorts'),
+            self::OPERATOR_HAVE_COMPLETED =>
+                get_string('condition:course_completion:have_completed', 'tool_dynamic_cohorts'),
+            self::OPERATOR_HAVE_NOT_COMPLETED =>
+                get_string('condition:course_completion:have_not_completed', 'tool_dynamic_cohorts'),
         ];
     }
 
@@ -142,7 +159,8 @@ class course_completion extends condition_base {
             [
                 'multiple' => true,
                 'onlywithcompletion' => true,
-            ]);
+            ]
+        );
         $mform->addRule('courseids', get_string('required'), 'required');
 
         $mform->addElement(
@@ -163,18 +181,24 @@ class course_completion extends condition_base {
 
         if (empty($data['courseids'])) {
             $errors['courseids'] = get_string('required');
+        } else {
+            $courseerrors = $this->get_course_configuration_errors($data['courseids']);
+            if (!empty($courseerrors)) {
+                $errors['courseids'] = implode(html_writer::empty_tag('br'), array_map(
+                    fn(\stdClass $error): string => $this->get_configuration_error_description($error),
+                    $courseerrors
+                ));
+            }
         }
 
         if (!array_key_exists((int) ($data['completionoperator'] ?? 0), $this->get_completion_operators())) {
-            $errors['completionoperator'] = get_string('invaliddata');
+            $errors['completionoperator'] = get_string('invaliddata', 'error');
         }
-
         if (!array_key_exists((int) ($data['selectionoperator'] ?? 0), $this->get_selection_operators())) {
-            $errors['selectionoperator'] = get_string('invaliddata');
+            $errors['selectionoperator'] = get_string('invaliddata', 'error');
         }
-
         if (!array_key_exists((int) ($data['periodoperator'] ?? 0), $this->get_period_operators())) {
-            $errors['periodoperator'] = get_string('invaliddata');
+            $errors['periodoperator'] = get_string('invaliddata', 'error');
         }
 
         return $errors;
@@ -184,44 +208,43 @@ class course_completion extends condition_base {
     public function get_config_description(): string {
         global $DB;
 
-        $configuredcourses = $this->get_courseids_value();
-        $records = [];
-        if (!empty($configuredcourses)) {
-            $records = $DB->get_records_list('course', 'id', $configuredcourses, '', 'id, fullname');
+        $courseids = $this->get_courseids_value();
+        $courses = $courseids ? $DB->get_records_list('course', 'id', $courseids, '', 'id, fullname') : [];
+        $badges = [];
+        foreach ($courseids as $courseid) {
+            if (isset($courses[$courseid])) {
+                $badges[] = $this->get_course_badge($courses[$courseid]);
+            } else {
+                $label = get_string('condition:course_completion:missingcourse', 'tool_dynamic_cohorts',
+                    (object) ['courseid' => $courseid]);
+                $badges[] = html_writer::span($label, 'badge badge-secondary');
+            }
         }
 
-        $badges = [];
-        foreach ($configuredcourses as $courseid) {
-            if (isset($records[$courseid])) {
-                $coursename = format_string(
-                    $records[$courseid]->fullname,
-                    true,
-                    [
-                        'context' => course::instance($courseid),
-                        'escape' => false,
-                    ]);
-                $courseurl = new url('/course/view.php', ['id' => $courseid]);
-                $badges[] = html_writer::link($courseurl, $coursename, [
-                    'class' => 'badge badge-secondary',
-                    'target' => '_blank',
-                    'rel' => 'noopener noreferrer',
-                ]);
-            } else {
-                $badges[] = html_writer::tag('span', $coursename, ['class' => 'badge badge-secondary']);
-            }
+        $coursebadges = implode(' ', $badges);
+        $completion = $this->get_completion_operators()[$this->get_completion_operator_value()] ?? null;
+        $selection = $this->get_selection_operators()[$this->get_selection_operator_value()] ?? null;
+        $period = $this->get_period_operators()[$this->get_period_operator_value()] ?? null;
+
+        // A broken operator must not prevent the configured courses from being displayed.
+        if (in_array(null, [$completion, $selection, $period], true)) {
+            return get_string('condition:course_completion:configuredcourses', 'tool_dynamic_cohorts', $coursebadges);
         }
 
         $periodoperator = $this->get_period_operator_value();
         $periodclause = '';
         if ($periodoperator !== self::PERIOD_ANY) {
-            $periodclause = ' ' . strtolower($this->get_period_operators()[$periodoperator]) . ' ' . userdate($this->get_timecompleted_value());
+            $periodclause = ' '
+                . strtolower($period)
+                . ' '
+                . userdate($this->get_timecompleted_value());
         }
 
         return get_string('condition:course_completion:config_description', 'tool_dynamic_cohorts', (object) [
-            'completionoperator' => strtolower($this->get_completion_operators()[$this->get_completion_operator_value()]),
-            'selectionoperator' => strtolower($this->get_selection_operators()[$this->get_selection_operator_value()]),
+            'completionoperator' => strtolower($completion),
+            'selectionoperator' => strtolower($selection),
             'periodclause' => $periodclause,
-            'coursebadges' => implode(' ', $badges),
+            'coursebadges' => $coursebadges,
         ]);
     }
 
@@ -236,17 +259,21 @@ class course_completion extends condition_base {
 
         $sql = new condition_sql('', '1=0', []);
 
-        if ($this->is_broken()) {
+        $courseids = $this->get_courseids_value();
+        if (!$courseids || $this->is_broken()) {
             return $sql;
         }
 
         $params = [];
         $subtable = condition_sql::generate_table_alias();
-        $coursetotalparam = condition_sql::generate_param_alias();
-        $params[$coursetotalparam] = count($this->get_courseids_value());
+        $selectionoperator = $this->get_selection_operator_value();
+        if ($selectionoperator === self::SELECTION_ALL) {
+            $coursetotalparam = condition_sql::generate_param_alias();
+            $params[$coursetotalparam] = count($courseids);
+        }
 
         [$insql, $inparams] = $DB->get_in_or_equal(
-            $this->get_courseids_value(),
+            $courseids,
             SQL_PARAMS_NAMED,
             condition_sql::generate_param_alias()
         );
@@ -271,7 +298,6 @@ class course_completion extends condition_base {
                 ) $subtable ON $subtable.userid = u.id";
 
         $completionoperator = $this->get_completion_operator_value();
-        $selectionoperator = $this->get_selection_operator_value();
 
         if ($completionoperator === self::OPERATOR_HAVE_COMPLETED) {
             $where = $selectionoperator === self::SELECTION_ALL
@@ -286,67 +312,133 @@ class course_completion extends condition_base {
         return new condition_sql($join, $where, $params);
     }
 
-    #[\Override]
-    public function is_broken(): bool {
-        global $DB;
-
+    /**
+     * Returns configuration errors without formatting them for display.
+     *
+     * @return \stdClass[]
+     */
+    public function get_configuration_errors(): array {
+        // Empty data indicates a fresh draft.
         $data = $this->get_config_data();
         if (empty($data)) {
-            return false;
+            return [];
         }
 
+        $errors = [];
+        $courseids = $this->get_courseids_value();
         if (!array_key_exists($this->get_completion_operator_value(), $this->get_completion_operators())) {
-            return true;
+            $errors[] = (object) ['errorcode' => self::CONFIG_ERROR_MALFORMED];
         }
-
         if (!array_key_exists($this->get_selection_operator_value(), $this->get_selection_operators())) {
-            return true;
+            $errors[] = (object) ['errorcode' => self::CONFIG_ERROR_MALFORMED];
         }
-
         if (!array_key_exists($this->get_period_operator_value(), $this->get_period_operators())) {
-            return true;
+            $errors[] = (object) ['errorcode' => self::CONFIG_ERROR_MALFORMED];
+        }
+        if (empty($courseids)) {
+            $errors[] = (object) ['errorcode' => self::CONFIG_ERROR_MALFORMED];
+            return $errors;
         }
 
-        if (empty($this->get_courseids_value())) {
-            return true;
-        }
-
-        foreach ($this->get_courseids_value() as $courseid) {
-            $course = $DB->get_record('course', ['id' => $courseid]);
-            if (!$course) {
-                return true;
-            }
-
-            $completion = new completion_info($course);
-            if (!$completion->is_enabled()) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_merge($errors, $this->get_course_configuration_errors($courseids));
     }
 
     /**
-     * Human readable description of the broken condition.
+     * Gets configuration errors related to configured courses.
      *
-     * @return string
+     * @param int[] $courseids Course IDs to check.
+     * @return \stdClass[]
      */
-    public function get_broken_description(): string {
+    protected function get_course_configuration_errors(array $courseids): array {
         global $DB;
 
-        foreach ($this->get_courseids_value() as $courseid) {
-            $course = $DB->get_record('course', ['id' => $courseid]);
-            if (!$course) {
-                return get_string('missingcourse', 'tool_dynamic_cohorts');
-            }
-
-            $completion = new completion_info($course);
-            if (!$completion->is_enabled()) {
-                return get_string('completionisdisabled', 'tool_dynamic_cohorts');
+        $errors = [];
+        if (!$courseids) {
+            return $errors;
+        }
+        $courses = $DB->get_records_list('course', 'id', $courseids);
+        foreach ($courseids as $courseid) {
+            if (!isset($courses[$courseid])) {
+                $errors[] = (object) [
+                    'errorcode' => self::CONFIG_ERROR_MISSING_COURSE,
+                    'a' => (object) ['courseid' => $courseid],
+                ];
+            } else {
+                $completion = new completion_info($courses[$courseid]);
+                if (!$completion->is_enabled()) {
+                    $errors[] = (object) [
+                        'errorcode' => self::CONFIG_ERROR_COMPLETION_DISABLED,
+                        'a' => (object) [
+                            'courseid' => $courseid,
+                            'course' => $courses[$courseid],
+                        ],
+                    ];
+                }
             }
         }
 
-        return parent::get_broken_description();
+        return $errors;
+    }
+
+    /**
+     * Returns a linked course name for configuration error messages.
+     *
+     * @param \stdClass $course Course record.
+     * @return string
+     */
+    protected function get_course_badge(\stdClass $course): string {
+        $coursename = format_string($course->fullname, true, [
+            'context' => course::instance($course->id),
+            'escape' => false,
+        ]);
+
+        return html_writer::link(new url('/course/view.php', ['id' => $course->id]), $coursename, [
+            'class' => 'badge badge-secondary',
+            'target' => '_blank',
+            'rel' => 'noopener noreferrer',
+        ]);
+    }
+
+    /**
+     * Returns a human-readable configuration error description.
+     *
+     * @param \stdClass $error Configuration error.
+     * @return string
+     */
+    protected function get_configuration_error_description(\stdClass $error): string {
+        return match ($error->errorcode) {
+            self::CONFIG_ERROR_MALFORMED =>
+                get_string('condition:course_completion:malformed', 'tool_dynamic_cohorts'),
+
+            self::CONFIG_ERROR_MISSING_COURSE =>
+                get_string('condition:course_completion:missingcourse', 'tool_dynamic_cohorts', $error->a),
+
+            self::CONFIG_ERROR_COMPLETION_DISABLED =>
+                get_string('condition:course_completion:completionisdisabled', 'tool_dynamic_cohorts', (object) [
+                    'courseid' => $error->a->courseid,
+                    'coursebadge' => $this->get_course_badge($error->a->course),
+                ]),
+        };
+    }
+
+    #[\Override]
+    public function is_broken(): bool {
+        return !empty($this->get_configuration_errors());
+    }
+
+    #[\Override]
+    public function get_broken_description(): string {
+        $errors = $this->get_configuration_errors();
+        if (!$errors) {
+            return '';
+        }
+
+        $descriptions = [$this->get_config_description()];
+        foreach ($errors as $error) {
+            $descriptions[] = $this->get_configuration_error_description($error);
+        }
+
+        return implode(html_writer::empty_tag('hr'), $descriptions);
     }
 
     /**

@@ -60,10 +60,9 @@ function xmldb_tool_dynamic_cohorts_upgrade($oldversion): bool {
         upgrade_plugin_savepoint(true, 2024091300, 'tool', 'dynamic_cohorts');
     }
 
-    if ($oldversion < 2026052600) {
+    if ($oldversion < 2026101100) {
         // Migrate legacy course completion conditions to the new course completion class.
         // This script does not automatically collapse legacy completion condition chains.
-
         $legacycompleted = 'tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\course_completed';
         $legacynotcompleted = 'tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\course_not_completed';
 
@@ -122,7 +121,7 @@ function xmldb_tool_dynamic_cohorts_upgrade($oldversion): bool {
         }
         $records->close();
 
-        upgrade_plugin_savepoint(true, 2026052600, 'tool', 'dynamic_cohorts');
+        upgrade_plugin_savepoint(true, 2026101100, 'tool', 'dynamic_cohorts');
     }
 
     return true;

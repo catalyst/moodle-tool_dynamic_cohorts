@@ -103,6 +103,8 @@ final class user_role_test extends \advanced_testcase {
     public function test_config_description(): void {
         $this->resetAfterTest();
 
+        $this->setAdminUser();
+
         $roleid = $this->getDataGenerator()->create_role();
         $roles = get_all_roles();
         $category = $this->getDataGenerator()->create_category();
