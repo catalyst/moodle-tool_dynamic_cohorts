@@ -116,7 +116,7 @@ const getMatchingUsersModalBody = (ruleid) => {
         ruleid: ruleid,
     };
 
-    return Fragment.loadFragment('tool_dynamic_cohorts', 'matching_users', 1, params);
+    return Fragment.loadFragment('tool_dynamic_cohorts', 'matching_users', M.cfg.contextid, params);
 };
 
 /**
