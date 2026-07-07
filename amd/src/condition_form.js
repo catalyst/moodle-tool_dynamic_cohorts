@@ -84,7 +84,7 @@ const displayModalForm = (className, defaults) => {
         title: getString('conditionformtitle', 'tool_dynamic_cohorts'),
         body: getModalFormBody(className, '', defaults),
         large: true,
-    }).then(function (modal) {
+    }).then(function(modal) {
 
         modal.getRoot().on(ModalEvents.save, function(e) {
             e.preventDefault();
@@ -101,7 +101,9 @@ const displayModalForm = (className, defaults) => {
         });
 
         modal.show();
-    });
+
+        return modal;
+    }).catch(Notification.exception);
 };
 
 /**
@@ -133,12 +135,12 @@ const submitModalFormAjax = (className, modal) => {
         Ajax.call([{
             methodname: 'tool_dynamic_cohorts_submit_condition_form',
             args: {classname: className, jsonformdata: JSON.stringify(submittedData)},
-            done: function (response) {
+            done: function(response) {
                 updateCondition(response);
                 renderConditions(getConditions());
                 modal.destroy();
             },
-            fail: function () {
+            fail: function() {
                 modal.setBody(getModalFormBody(className, submittedData, ''));
             }
         }]);
@@ -205,11 +207,13 @@ const displayNotSavedWarning = () => {
 const renderConditions = (conditions) => {
     Templates.render(
         'tool_dynamic_cohorts/conditions',
-        {'conditions' : conditions}
+        {'conditions': conditions}
     ).then(function(html) {
         document.querySelector(SELECTORS.CONDITIONS_LIST).innerHTML = html;
         applyConditionActions();
         displayNotSavedWarning();
+
+        return html;
     }).fail(function() {
         Notification.exception({message: 'Error updating conditions'});
     });
@@ -231,7 +235,7 @@ const applyConditionActions = () => {
                 getString('delete_confirm_condition', 'tool_dynamic_cohorts'),
                 getString('yes', 'moodle'),
                 getString('no', 'moodle'),
-                function () {
+                function() {
                     let sortorder = element.dataset.sortorder;
                     let conditions = getConditions()
                         .filter(c => c.sortorder != sortorder)
