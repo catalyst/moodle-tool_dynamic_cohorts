@@ -96,13 +96,15 @@ const displayMatchingUsers = (ruleid) => {
         title: getString('matchingusers', 'tool_dynamic_cohorts'),
         body: getMatchingUsersModalBody(ruleid),
         large: true,
-    }).then(function (modal) {
+    }).then(function(modal) {
         modal.getRoot().on(ModalEvents.hidden, function() {
             modal.destroy();
         });
 
         modal.show();
-    });
+
+        return modal;
+    }).catch(Notification.exception);
 };
 
 /**
@@ -133,12 +135,12 @@ const loadMatchingUsers = (root) => {
         Ajax.call([{
             methodname: 'tool_dynamic_cohorts_get_total_matching_users_for_rule',
             args: {ruleid: ruleid},
-            done: function (number) {
+            done: function(number) {
                 link.children[0].append(number.toLocaleString().replace(/,/g, " "));
                 loader.classList.add('hidden');
                 link.classList.remove('hidden');
             },
-            fail: function (response) {
+            fail: function(response) {
                 Notification.exception(response);
             }
         }]);
@@ -157,26 +159,28 @@ const initRuleConditionsModals = (root) => {
             Ajax.call([{
                 methodname: 'tool_dynamic_cohorts_get_conditions',
                 args: {ruleid: ruleid},
-                done: function (conditions) {
+                done: function(conditions) {
                     Templates.render(
                         'tool_dynamic_cohorts/conditions',
-                        {'conditions' : conditions, 'hidecontrols': true}
+                        {'conditions': conditions, 'hidecontrols': true}
                     ).then(function(html) {
-                        ModalCancel.create({
+                        return ModalCancel.create({
                             title: getString('conditionsformtitle', 'tool_dynamic_cohorts'),
                             body: html,
                             large: true,
-                        }).then(function (modal) {
-                            modal.getRoot().on(ModalEvents.hidden, function() {
-                                modal.destroy();
-                            });
-                            modal.show();
                         });
+                    }).then(function(modal) {
+                        modal.getRoot().on(ModalEvents.hidden, function() {
+                            modal.destroy();
+                        });
+                        modal.show();
+
+                        return modal;
                     }).fail(function(response) {
                         Notification.exception(response);
                     });
                 },
-                fail: function (response) {
+                fail: function(response) {
                     Notification.exception(response);
                 }
             }]);
@@ -193,6 +197,7 @@ const sendFeedback = (action) => {
     getString('completed:' + action, 'tool_dynamic_cohorts')
         .then(message => {
             notifyUser(message);
+            return message;
         }).catch(Notification.exception);
 };
 
@@ -203,6 +208,7 @@ const sendWarning = () => {
     getString('ruledisabledpleasereview', 'tool_dynamic_cohorts')
         .then(message => {
             notifyUser(message, {type: 'warning', closeButton: true, delay: 10000});
+            return message;
         }).catch(Notification.exception);
 };
 
@@ -230,16 +236,16 @@ const initRuleToggle = (root) => {
                 getString(action + '_confirm', 'tool_dynamic_cohorts'),
                 getString('yes', 'moodle'),
                 getString('no', 'moodle'),
-                function () {
+                function() {
                     Ajax.call([{
                         methodname: 'tool_dynamic_cohorts_toggle_rule_status',
                         args: {ruleid: ruleid},
-                        done: function () {
+                        done: function() {
                             sendFeedback(action);
                             DynamicTable.refreshTableContent(getTableRoot())
                                 .catch(Notification.exception);
                         },
-                        fail: function (response) {
+                        fail: function(response) {
                             Notification.exception(response);
                         }
                     }]);
@@ -264,16 +270,16 @@ const initRuleDelete = (root) => {
                 getString(action + '_confirm', 'tool_dynamic_cohorts', ruleid),
                 getString('yes', 'moodle'),
                 getString('no', 'moodle'),
-                function () {
+                function() {
                     Ajax.call([{
                         methodname: 'tool_dynamic_cohorts_delete_rules`',
                         args: {ruleids: {ruleid}},
-                        done: function () {
+                        done: function() {
                             sendFeedback(action);
                             DynamicTable.refreshTableContent(getTableRoot())
                                 .catch(Notification.exception);
                         },
-                        fail: function (response) {
+                        fail: function(response) {
                             Notification.exception(response);
                         }
                     }]);
@@ -289,7 +295,7 @@ const initRuleAdd = () => {
     // Add listener to the click event that will load the form.
     document.querySelector(SELECTORS.RULE_ADD).addEventListener('click', (e) => {
         e.preventDefault();
-        const modalForm= getRuleForm(0, 'add');
+        const modalForm = getRuleForm(0, 'add');
         modalForm.addEventListener(modalForm.events.FORM_SUBMITTED, () => {
             sendFeedback('add');
             sendWarning();
@@ -312,7 +318,7 @@ const initRuleEdit = (root) => {
             e.preventDefault();
             let ruleid = link.dataset.ruleid;
 
-            const modalForm= getRuleForm(ruleid, 'edit');
+            const modalForm = getRuleForm(ruleid, 'edit');
             modalForm.addEventListener(modalForm.events.FORM_SUBMITTED, () => {
                 sendFeedback('update');
                 sendWarning();
