@@ -174,7 +174,11 @@ final class course_completion_test extends \advanced_testcase {
         ]);
         $this->assertTrue($condition->is_broken());
         $this->assertSame(
-            get_string('condition:course_completion:missingcourse', 'tool_dynamic_cohorts', (object) ['courseid' => 7777]),
+            get_string(
+                'condition:course_completion:missingcourse',
+                'tool_dynamic_cohorts',
+                (object) ['courseid' => 7777]
+            ),
             $condition->get_broken_description()
         );
 
@@ -188,7 +192,11 @@ final class course_completion_test extends \advanced_testcase {
         ]);
         $this->assertTrue($condition->is_broken());
         $this->assertSame(
-            get_string('condition:course_completion:completionisdisabled', 'tool_dynamic_cohorts', (object) ['courseid' => $course->id]),
+            get_string(
+                'condition:course_completion:completionisdisabled',
+                'tool_dynamic_cohorts',
+                (object) ['courseid' => $course->id]
+            ),
             $condition->get_broken_description()
         );
 

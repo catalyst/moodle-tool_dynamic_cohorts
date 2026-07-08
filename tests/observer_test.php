@@ -41,6 +41,7 @@ final class observer_test extends advanced_testcase {
     public function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
+        set_config('realtime', 1, 'tool_dynamic_cohorts');
         $this->cohort = $this->getDataGenerator()->create_cohort();
     }
 

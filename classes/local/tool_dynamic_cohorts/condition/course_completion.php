@@ -92,8 +92,10 @@ class course_completion extends condition_base {
      */
     protected function get_completion_operators(): array {
         return [
-            self::OPERATOR_HAVE_COMPLETED => get_string('condition:course_completion:have_completed', 'tool_dynamic_cohorts'),
-            self::OPERATOR_HAVE_NOT_COMPLETED => get_string('condition:course_completion:have_not_completed', 'tool_dynamic_cohorts'),
+            self::OPERATOR_HAVE_COMPLETED =>
+                get_string('condition:course_completion:have_completed', 'tool_dynamic_cohorts'),
+            self::OPERATOR_HAVE_NOT_COMPLETED =>
+                get_string('condition:course_completion:have_not_completed', 'tool_dynamic_cohorts'),
         ];
     }
 
@@ -157,7 +159,8 @@ class course_completion extends condition_base {
             [
                 'multiple' => true,
                 'onlywithcompletion' => true,
-            ]);
+            ]
+        );
         $mform->addRule('courseids', get_string('required'), 'required');
 
         $mform->addElement(
@@ -214,7 +217,8 @@ class course_completion extends condition_base {
                     [
                         'context' => course::instance($courseid),
                         'escape' => false,
-                    ]);
+                    ]
+                );
                 $courseurl = new url('/course/view.php', ['id' => $courseid]);
                 $badges[] = html_writer::link($courseurl, $coursename, [
                     'class' => 'badge badge-secondary',
@@ -227,7 +231,10 @@ class course_completion extends condition_base {
         $periodoperator = $this->get_period_operator_value();
         $periodclause = '';
         if ($periodoperator !== self::PERIOD_ANY) {
-            $periodclause = ' ' . strtolower($this->get_period_operators()[$periodoperator]) . ' ' . userdate($this->get_timecompleted_value());
+            $periodclause = ' '
+                . strtolower($this->get_period_operators()[$periodoperator])
+                . ' '
+                . userdate($this->get_timecompleted_value());
         }
 
         return get_string('condition:course_completion:config_description', 'tool_dynamic_cohorts', (object) [
@@ -337,7 +344,7 @@ class course_completion extends condition_base {
             if (!isset($courses[$courseid])) {
                 $errors[] = (object) [
                     'errorcode' => self::CONFIG_ERROR_MISSING_COURSE,
-                    'a' => (object) ['courseid' => $courseid]
+                    'a' => (object) ['courseid' => $courseid],
                 ];
             } else {
                 $completion = new completion_info($courses[$courseid]);
