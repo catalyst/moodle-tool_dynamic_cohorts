@@ -71,24 +71,19 @@ class course_completion extends condition_base {
     public const PERIOD_AFTER = 3;
 
     /**
-     * Broken status for a condition that is OK.
+     * Configuration error for a condition with malformed configuration.
      */
-    public const BROKEN_STATUS_OK = 0;
+    public const CONFIG_ERROR_MALFORMED = 1;
 
     /**
-     * Broken status for a condition with malformed configuration.
+     * Configuration error for a condition with a missing course.
      */
-    public const BROKEN_STATUS_MALFORMED = 1;
+    public const CONFIG_ERROR_MISSING_COURSE = 2;
 
     /**
-     * Broken status for a condition with a missing course.
+     * Configuration error for a condition with course completion disabled.
      */
-    public const BROKEN_STATUS_MISSING_COURSE = 2;
-
-    /**
-     * Broken status for a condition with course completion disabled.
-     */
-    public const BROKEN_STATUS_COMPLETION_DISABLED = 3;
+    public const CONFIG_ERROR_COMPLETION_DISABLED = 3;
 
     /**
      * Gets completion operators.
@@ -307,66 +302,80 @@ class course_completion extends condition_base {
     /**
      * Returns the status code indicating the condition configuration state.
      *
-     * @return int
+     * @return array
      */
-    public function get_broken_status(): int {
+    public function get_configuration_errors(): array {
         global $DB;
+
+        $errors = [];
 
         // Empty data indicates a fresh draft.
         $data = $this->get_config_data();
         if (empty($data)) {
-            return self::BROKEN_STATUS_OK;
+            return $errors;
         }
 
         if (!array_key_exists($this->get_completion_operator_value(), $this->get_completion_operators())) {
-            return self::BROKEN_STATUS_MALFORMED;
+            $errors[] = (object) ['errorcode' => self::CONFIG_ERROR_MALFORMED];
         }
 
         if (!array_key_exists($this->get_selection_operator_value(), $this->get_selection_operators())) {
-            return self::BROKEN_STATUS_MALFORMED;
+            $errors[] = (object) ['errorcode' => self::CONFIG_ERROR_MALFORMED];
         }
 
         if (!array_key_exists($this->get_period_operator_value(), $this->get_period_operators())) {
-            return self::BROKEN_STATUS_MALFORMED;
+            $errors[] = (object) ['errorcode' => self::CONFIG_ERROR_MALFORMED];
         }
 
         $courseids = $this->get_courseids_value();
         if (empty($courseids)) {
-            return self::BROKEN_STATUS_MALFORMED;
+            $errors[] = (object) ['errorcode' => self::CONFIG_ERROR_MALFORMED];
         }
 
         $courses = $DB->get_records_list('course', 'id', $courseids);
         foreach ($courseids as $courseid) {
             if (!isset($courses[$courseid])) {
-                return self::BROKEN_STATUS_MISSING_COURSE;
-            }
-
-            $completion = new completion_info($courses[$courseid]);
-            if (!$completion->is_enabled()) {
-                return self::BROKEN_STATUS_COMPLETION_DISABLED;
+                $errors[] = (object) [
+                    'errorcode' => self::CONFIG_ERROR_MISSING_COURSE,
+                    'a' => (object) ['courseid' => $courseid]
+                ];
+            } else {
+                $completion = new completion_info($courses[$courseid]);
+                if (!$completion->is_enabled()) {
+                    $errors[] = (object) [
+                        'errorcode' => self::CONFIG_ERROR_COMPLETION_DISABLED,
+                        'a' => (object) ['courseid' => $courseid],
+                    ];
+                }
             }
         }
 
-        return self::BROKEN_STATUS_OK;
+        return $errors;
     }
 
     #[\Override]
     public function is_broken(): bool {
-        return $this->get_broken_status() !== self::BROKEN_STATUS_OK;
+        return !empty($this->get_configuration_errors());
     }
 
     #[\Override]
     public function get_broken_description(): string {
-        return match ($this->get_broken_status()) {
-            self::BROKEN_STATUS_MALFORMED =>
-            get_string('condition:course_completion:malformed', 'tool_dynamic_cohorts'),
+        $descriptions = [];
 
-            self::BROKEN_STATUS_MISSING_COURSE =>
-            get_string('condition:course_completion:missingcourse', 'tool_dynamic_cohorts'),
+        foreach ($this->get_configuration_errors() as $error) {
+            $descriptions[] = match ($error->errorcode) {
+                self::CONFIG_ERROR_MALFORMED =>
+                get_string('condition:course_completion:malformed', 'tool_dynamic_cohorts'),
 
-            self::BROKEN_STATUS_COMPLETION_DISABLED =>
-            get_string('condition:course_completion:completionisdisabled', 'tool_dynamic_cohorts'),
-        };
+                self::CONFIG_ERROR_MISSING_COURSE =>
+                get_string('condition:course_completion:missingcourse', 'tool_dynamic_cohorts', $error->a),
+
+                self::CONFIG_ERROR_COMPLETION_DISABLED =>
+                get_string('condition:course_completion:completionisdisabled', 'tool_dynamic_cohorts', $error->a),
+            };
+        }
+
+        return implode(html_writer::empty_tag('hr'), $descriptions);
     }
 
     /**
