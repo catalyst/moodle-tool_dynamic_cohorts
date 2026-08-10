@@ -65,7 +65,7 @@ const getModalFormBody = (className, submittedData, defaults) => {
         defaults: JSON.stringify(defaults),
     };
 
-    return Fragment.loadFragment('tool_dynamic_cohorts', 'condition_form', 1, params);
+    return Fragment.loadFragment('tool_dynamic_cohorts', 'condition_form', M.cfg.contextid, params);
 };
 
 /**
