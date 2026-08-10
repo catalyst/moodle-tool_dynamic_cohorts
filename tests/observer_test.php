@@ -17,7 +17,6 @@
 namespace tool_dynamic_cohorts;
 
 use advanced_testcase;
-use tool_dynamic_cohorts\local\tool_dynamic_cohorts\condition\user_profile;
 
 /**
  * Unit tests for observer class.
@@ -50,6 +49,8 @@ final class observer_test extends advanced_testcase {
     public function test_user_creation_triggers_rule_processing(): void {
         global $DB;
 
+        set_config('realtime', 1, 'tool_dynamic_cohorts');
+
         $rule = new rule(0, (object)['name' => 'Test rule 1', 'enabled' => 1, 'cohortid' => $this->cohort->id, 'realtime' => 1]);
         $rule->save();
 
@@ -60,7 +61,7 @@ final class observer_test extends advanced_testcase {
         // Condition username starts with user to catch both users.
         $condition->set_config_data([
             'profilefield' => 'username',
-            'username_operator' => user_profile::TEXT_STARTS_WITH,
+            'username_operator' => condition_base::TEXT_STARTS_WITH,
             'username_value' => 'user',
         ]);
 
@@ -83,6 +84,8 @@ final class observer_test extends advanced_testcase {
     public function test_user_updating_triggers_rule_processing(): void {
         global $DB;
 
+        set_config('realtime', 1, 'tool_dynamic_cohorts');
+
         $user1 = $this->getDataGenerator()->create_user(['username' => 'user1']);
         $user2 = $this->getDataGenerator()->create_user(['username' => 'user2']);
 
@@ -96,7 +99,7 @@ final class observer_test extends advanced_testcase {
         // Condition username starts with user to catch both users.
         $condition->set_config_data([
             'profilefield' => 'username',
-            'username_operator' => user_profile::TEXT_STARTS_WITH,
+            'username_operator' => condition_base::TEXT_STARTS_WITH,
             'username_value' => 'user',
         ]);
 
@@ -132,7 +135,7 @@ final class observer_test extends advanced_testcase {
         // Condition username starts with user to catch both users.
         $condition->set_config_data([
             'profilefield' => 'username',
-            'username_operator' => user_profile::TEXT_STARTS_WITH,
+            'username_operator' => condition_base::TEXT_STARTS_WITH,
             'username_value' => 'user',
         ]);
 
@@ -167,7 +170,7 @@ final class observer_test extends advanced_testcase {
         // Condition username starts with user to catch both users.
         $condition->set_config_data([
             'profilefield' => 'username',
-            'username_operator' => user_profile::TEXT_STARTS_WITH,
+            'username_operator' => condition_base::TEXT_STARTS_WITH,
             'username_value' => 'user',
         ]);
 
