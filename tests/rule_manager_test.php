@@ -944,6 +944,79 @@ final class rule_manager_test extends \advanced_testcase {
     }
 
     /**
+     * Data provider for testing targeted rule processing invalidates the matching users count cache.
+     *
+     * @return array
+     */
+    public static function targeted_rule_processing_provider(): array {
+        return [
+            'matching to non-matching' => ['matchingusername', 'otherusername', 1, 0],
+            'non-matching to matching' => ['otherusername', 'matchingusername', 0, 1],
+        ];
+    }
+
+    /**
+     * Test targeted rule processing invalidates the matching users count cache.
+     *
+     * @dataProvider targeted_rule_processing_provider
+     * @param string $initialusername Initial username.
+     * @param string $updatedusername Updated username.
+     * @param int $initialcount Initial matching user count.
+     * @param int $updatedcount Updated matching user count.
+     */
+    public function test_targeted_rule_processing_invalidates_matching_users_count_cache(
+        string $initialusername,
+        string $updatedusername,
+        int $initialcount,
+        int $updatedcount
+    ): void {
+        global $DB;
+
+        $this->resetAfterTest();
+
+        $user = $this->getDataGenerator()->create_user(['username' => $initialusername]);
+        $cohort = $this->getDataGenerator()->create_cohort();
+
+        $rule = new rule(0, (object)[
+            'name' => 'Test rule',
+            'cohortid' => $cohort->id,
+            'enabled' => 1,
+            'realtime' => 1,
+        ]);
+        $rule->save();
+
+        $condition = user_profile::get_instance(0, (object)['ruleid' => $rule->get('id'), 'sortorder' => 1]);
+        $condition->set_config_data([
+            'profilefield' => 'username',
+            'username_operator' => condition_base::TEXT_IS_EQUAL_TO,
+            'username_value' => 'matchingusername',
+        ]);
+        $condition->get_record()->save();
+
+        rule_manager::process_rule($rule);
+
+        $cache = cache::make('tool_dynamic_cohorts', 'matchinguserscount');
+        $cache->delete($rule->get('id'));
+        $this->assertSame($initialcount, rule_manager::get_matching_users_count($rule));
+        $this->assertSame($initialcount, (int) $cache->get($rule->get('id')));
+        $this->assertSame(
+            (bool) $initialcount,
+            $DB->record_exists('cohort_members', ['cohortid' => $cohort->id, 'userid' => $user->id])
+        );
+
+        $DB->set_field('user', 'username', $updatedusername, ['id' => $user->id]);
+        rule_manager::process_rule($rule, $user->id);
+
+        $this->assertSame(
+            (bool) $updatedcount,
+            $DB->record_exists('cohort_members', ['cohortid' => $cohort->id, 'userid' => $user->id])
+        );
+        $this->assertFalse($cache->get($rule->get('id')));
+        $this->assertSame($updatedcount, rule_manager::get_matching_users_count($rule));
+        $this->assertSame($updatedcount, (int) $cache->get($rule->get('id')));
+    }
+
+    /**
      * Test that a list of matching users is cached.
      */
     public function test_matching_users_get_cached(): void {
