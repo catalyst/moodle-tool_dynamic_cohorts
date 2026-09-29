@@ -248,6 +248,8 @@ class rule_manager {
             $users = $DB->get_records_sql($sql . $sqldata->get_join() . ' WHERE ' . $sqldata->get_where(), $sqldata->get_params());
             if (empty($userid)) {
                 $matchinguserscache->set($rule->get('id'), count($users));
+            } else {
+                $matchinguserscache->delete($rule->get('id'));
             }
             return $users;
         } catch (\Exception $exception) {
