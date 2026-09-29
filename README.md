@@ -118,6 +118,12 @@ To mitigate this, an option is provided to process "in bulk" instead of adding t
 2. Check the "Bulk processing" checkbox
 3. Save the rule and review it before enabling
 
+### Bulk processing and events
+By default, bulk processing does not fire events when users are added to or removed from cohorts. This is deliberate because firing an event for each membership change adds load and can cause performance issues for large rules or imports. Plugins that observe these events will therefore not react to bulk membership changes.
+
+Enabling the option 'Trigger events during bulk processing' will cause these events to be fired. However please be aware that, as stated above, this could cause performance issues in high volume Moodles.
+
+
 # Technical details
 
 ## Condition implementation

@@ -40,6 +40,12 @@ if ($hassiteconfig) {
         new lang_string('settings:realtime_desc', 'tool_dynamic_cohorts'),
         1
     ));
+    $settings->add(new admin_setting_configcheckbox(
+        'tool_dynamic_cohorts/bulkprocessingevents',
+        new lang_string('settings:bulkprocessingevents', 'tool_dynamic_cohorts'),
+        new lang_string('settings:bulkprocessingevents_desc', 'tool_dynamic_cohorts'),
+        0
+    ));
     $ADMIN->add('tool_dynamic_cohorts', $settings);
 }
 

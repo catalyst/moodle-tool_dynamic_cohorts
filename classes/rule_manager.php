@@ -344,10 +344,13 @@ class rule_manager {
 
         $cohortid = $rule->get('cohortid');
 
-        if (!$DB->record_exists('cohort', ['id' => $cohortid])) {
+        $cohort = $DB->get_record('cohort', ['id' => $cohortid]);
+        if (empty($cohort)) {
             $rule->mark_broken();
             return;
         }
+
+        $context = \context::instance_by_id($cohort->contextid);
 
         $users = self::get_matching_users($rule, $userid);
 
@@ -363,6 +366,8 @@ class rule_manager {
         $userstodelete = array_diff_key($cohortmembers, $users);
 
         if ($rule->is_bulk_processing()) {
+            $firebulkevents = (bool) get_config('tool_dynamic_cohorts', 'bulkprocessingevents');
+
             $timeadded = time();
             foreach (array_chunk($userstoadd, self::BULK_PROCESSING_SIZE) as $users) {
                 $records = [];
@@ -374,6 +379,18 @@ class rule_manager {
                     $records[] = $record;
                 }
                 $DB->insert_records('cohort_members', $records);
+
+                if ($firebulkevents) {
+                    foreach ($users as $user) {
+                        $event = \core\event\cohort_member_added::create([
+                            'context' => $context,
+                            'objectid' => $cohortid,
+                            'relateduserid' => $user->id,
+                        ]);
+                        $event->add_record_snapshot('cohort', $cohort);
+                        $event->trigger();
+                    }
+                }
             }
 
             foreach (array_chunk($userstodelete, self::BULK_PROCESSING_SIZE) as $users) {
@@ -382,6 +399,18 @@ class rule_manager {
                 $sql = "userid $insql AND cohortid = :cohort";
                 $inparams['cohort'] = $cohortid;
                 $DB->delete_records_select('cohort_members', $sql, $inparams);
+
+                if ($firebulkevents) {
+                    foreach ($users as $user) {
+                        $event = \core\event\cohort_member_removed::create([
+                            'context' => $context,
+                            'objectid' => $cohortid,
+                            'relateduserid' => $user->userid,
+                        ]);
+                        $event->add_record_snapshot('cohort', $cohort);
+                        $event->trigger();
+                    }
+                }
             }
         } else {
             foreach ($userstoadd as $user) {
