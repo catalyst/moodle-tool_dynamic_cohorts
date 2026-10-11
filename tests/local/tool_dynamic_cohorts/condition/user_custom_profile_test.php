@@ -361,12 +361,23 @@ final class user_custom_profile_test extends \advanced_testcase {
         $higherdate = 1205280000 + 86400;
 
         $userbeforethreshold = $this->getDataGenerator()->create_user(['username' => 'userdatebeforethreshold']);
-        profile_save_data((object) ['id' => $userbeforethreshold->id, 'profile_field_' . $textfield->shortname => 'User 1 Field 1']);
-        profile_save_data((object) ['id' => $userbeforethreshold->id, 'profile_field_' . $datefield->shortname => $lowerdate]);
+        profile_save_data((object) [
+            'id' => $userbeforethreshold->id,
+            'profile_field_' . $textfield->shortname => 'User 1 Field 1',
+        ]);
+        profile_save_data((object) [
+            'id' => $userbeforethreshold->id,
+            'profile_field_' . $datefield->shortname => $lowerdate,
+        ]);
 
         $userafterthreshold = $this->getDataGenerator()->create_user(['username' => 'userdateafterthreshold']);
-        profile_save_data((object) ['id' => $userafterthreshold->id, 'profile_field_' . $textfield->shortname => 'User 2 Field 1']);
-        profile_save_data((object) ['id' => $userafterthreshold->id, 'profile_field_' . $datefield->shortname => $higherdate]);
+        profile_save_data((object) [
+            'id' => $userafterthreshold->id,
+            'profile_field_' . $textfield->shortname => 'User 2 Field 1',
+        ]);
+        profile_save_data((object) ['id' => $userafterthreshold->id,
+            'profile_field_' . $datefield->shortname => $higherdate,
+        ]);
 
         $fieldname = 'profile_field_' . $datefield->shortname;
         $condition = $this->get_condition([

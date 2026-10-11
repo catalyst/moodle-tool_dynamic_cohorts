@@ -59,8 +59,7 @@ Conditions are simple predicates which assert something about a user in the syst
 * Authentication method (Manual, SAML and etc)
 * Cohort fields (if a user is a member of cohort(s) matching specific cohort fields like cohort name, context, custom fields and etc)
 * Cohort membership (if a user is a member of cohort(s)).
-* Course completed (if a user has completed a course).
-* Course not completed (if a user has not completed a course).
+* Course completion (if a user has or has not completed specific courses with optional completion date criteria)
 * User created time (time since a user was created).
 * User custom profile fields (text, menu, date and autocomplete types are supported).
 * User enrolment (if a user is enrolled into a course).
