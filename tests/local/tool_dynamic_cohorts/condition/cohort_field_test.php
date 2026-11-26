@@ -127,6 +127,8 @@ final class cohort_field_test extends \advanced_testcase {
      */
     public function test_config_description_context_id(): void {
         $this->resetAfterTest();
+        // The list of categories is only built for users who can view them.
+        $this->setAdminUser();
 
         $coursecategory = $this->getDataGenerator()->create_category();
         $catcontext = \context_coursecat::instance($coursecategory->id);
