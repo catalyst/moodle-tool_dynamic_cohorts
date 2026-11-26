@@ -107,11 +107,29 @@ final class observer_test extends advanced_testcase {
 
         $this->assertEquals(0, $DB->count_records('cohort_members', ['cohortid' => $this->cohort->id]));
 
-        user_update_user($user1, false);
+        $this->update_user($user1);
         $this->assertEquals(1, $DB->count_records('cohort_members', ['cohortid' => $this->cohort->id]));
 
-        user_update_user($user2, false);
+        $this->update_user($user2);
         $this->assertEquals(2, $DB->count_records('cohort_members', ['cohortid' => $this->cohort->id]));
+    }
+
+    /**
+     * Update a user without changing the password.
+     *
+     * user_update_user() is deprecated since Moodle 5.3 in favour of \core\user::update_user().
+     *
+     * @param \stdClass $user User to update.
+     */
+    private function update_user(\stdClass $user): void {
+        global $CFG;
+
+        if (method_exists(\core\user::class, 'update_user')) {
+            \core\user::update_user($user, false);
+        } else {
+            require_once($CFG->dirroot . '/user/lib.php');
+            user_update_user($user, false);
+        }
     }
 
     /**

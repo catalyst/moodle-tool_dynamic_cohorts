@@ -25,8 +25,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'tool_dynamic_cohorts';
-$plugin->release = 2026031303;
-$plugin->version = 2026031303;
+$plugin->release = 2026112600;
+$plugin->version = 2026112600;
 $plugin->requires = 2022112800;
-$plugin->supported = [404, 501];
+$plugin->supported = [404, 503];
 $plugin->maturity = MATURITY_STABLE;

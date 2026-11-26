@@ -102,6 +102,8 @@ final class user_role_test extends \advanced_testcase {
      */
     public function test_config_description(): void {
         $this->resetAfterTest();
+        // Category names are only resolved for users who can view the category.
+        $this->setAdminUser();
 
         $roleid = $this->getDataGenerator()->create_role();
         $roles = get_all_roles();
